@@ -1,18 +1,5 @@
 # Use Case Diagram — AI-Powered Community Travel Explorer
 
-## Actors
-
-| Actor | Description |
-|---|---|
-| **Guest** | Unauthenticated visitor browsing the platform |
-| **Registered User** | Authenticated user with full platform access |
-| **Admin** | Platform administrator with moderation & management capabilities |
-| **AI Engine** | External AI service (OpenAI/Gemini) for recommendations & moderation |
-| **Maps API** | Google Maps for navigation & distance calculations |
-| **Ride API** | Uber/Ola APIs for fare estimation |
-| **Cloudinary** | Media storage & processing service |
-
----
 
 ## Use Case Diagram
 
@@ -149,72 +136,3 @@ graph LR
     UC22 --> Maps
     UC21 --> Rides
 ```
-
----
-
-## Use Case Descriptions
-
-### UC1 — Register Account
-| Field | Detail |
-|---|---|
-| **Actor** | Guest |
-| **Description** | Guest creates a new account with email, password, and profile details |
-| **Precondition** | Guest is not logged in |
-| **Postcondition** | New user account created, JWT token issued |
-
-### UC5 — Browse Places
-| Field | Detail |
-|---|---|
-| **Actor** | Guest, Registered User |
-| **Description** | View a list of places filtered by city, category, or budget |
-| **Precondition** | None |
-| **Postcondition** | List of matching places displayed |
-
-### UC8 — Upload New Place
-| Field | Detail |
-|---|---|
-| **Actor** | Registered User |
-| **Description** | User submits a new place with name, GPS, category, hours, budget |
-| **Precondition** | User is authenticated |
-| **Postcondition** | Place saved; AI checks for duplicates |
-| **Includes** | UC10 (Detect Duplicates) |
-
-### UC11 — Write Review
-| Field | Detail |
-|---|---|
-| **Actor** | Registered User |
-| **Description** | User writes a text review for a place they visited |
-| **Precondition** | User is authenticated, place exists |
-| **Postcondition** | Review saved and visible on place page |
-
-### UC21 — Compare Ride Fares
-| Field | Detail |
-|---|---|
-| **Actor** | Registered User |
-| **Description** | Compare estimated ride costs from multiple providers |
-| **Precondition** | User has selected origin and destination |
-| **Postcondition** | Fare estimates displayed with cheapest option highlighted |
-
-### UC23 — Create Visit Event
-| Field | Detail |
-|---|---|
-| **Actor** | Registered User |
-| **Description** | Schedule a group visit to a location |
-| **Precondition** | User is authenticated, place exists |
-| **Postcondition** | Event created, visible to community |
-
-### UC29 — Get AI Recommendations
-| Field | Detail |
-|---|---|
-| **Actor** | Registered User |
-| **Description** | AI suggests places based on user preferences and history |
-| **Precondition** | User is authenticated |
-| **Postcondition** | Personalized list of recommendations displayed |
-
-### UC33 — Moderate Content
-| Field | Detail |
-|---|---|
-| **Actor** | Admin |
-| **Description** | Admin reviews and takes action on flagged content |
-| **Precondition** | Admin is authenticated |
-| **Postcondition** | Content approved, edited, or removed |

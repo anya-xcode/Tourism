@@ -319,14 +319,3 @@ classDiagram
 
 ---
 
-## Key Design Patterns
-
-| Pattern | Usage |
-|---|---|
-| **Model Layer** | MongoDB Mongoose models (User, Place, Review, etc.) |
-| **Service Layer** | Business logic encapsulated in service classes |
-| **DTO Pattern** | Data Transfer Objects for input validation |
-| **Repository Pattern** | Mongoose models act as repositories |
-| **Dependency Injection** | Services injected into controllers |
-| **Enum Types** | TypeScript enums for categorical values |
-| **Interface Contracts** | Shared interfaces like GeoLocation |
