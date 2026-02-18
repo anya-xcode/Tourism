@@ -55,11 +55,11 @@ AI acts as an intelligence layer enhancing recommendations, content moderation, 
 
 ### 4.3 Standardized Place Information
 Every place includes:
-- 📍 GPS coordinates (latitude, longitude)
-- 💰 Price/budget range (Free, Budget, Moderate, Premium)
-- 🕐 Operating hours
-- ⏱️ Suggested visit duration
-- 🏷️ Category tags (Nature, Food, Heritage, Adventure, etc.)
+-  GPS coordinates (latitude, longitude)
+-  Price/budget range (Free, Budget, Moderate, Premium)
+-  Operating hours
+-  Suggested visit duration
+-  Category tags (Nature, Food, Heritage, Adventure, etc.)
 
 ### 4.4 AI Recommendation Engine
 - Personalized place suggestions based on user preferences
@@ -180,13 +180,13 @@ graph TD
 
 ## 10. Future Enhancements
 
-- 🗺️ AI-powered full trip planner
-- 🌦️ Crowd and weather prediction integration
-- 🏆 Gamified contributor rewards (badges, leaderboard)
-- 📴 Offline exploration mode with cached data
-- 🔔 Smart alerts (trending places, flash deals, group invites)
-- 🌐 Multi-language support
-- 📊 Contributor analytics dashboard
+-  AI-powered full trip planner
+-  Crowd and weather prediction integration
+-  Gamified contributor rewards (badges, leaderboard)
+-  Offline exploration mode with cached data
+-  Smart alerts (trending places, flash deals, group invites)
+-  Multi-language support
+-  Contributor analytics dashboard
 
 ---
 
