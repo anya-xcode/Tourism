@@ -10,6 +10,9 @@ import { NavigationService } from '../services/NavigationService';
 import { BookmarkService } from '../services/BookmarkService';
 import { FlagService } from '../services/FlagService';
 import { AIService } from '../services/AIService';
+import Logger from '../config/Logger';
+import ConfigManager from '../config/ConfigManager';
+import NotificationSubject, { LogObserver } from './NotificationObserver';
 
 /**
  * Factory Pattern — Service Factory
@@ -75,6 +78,29 @@ class ServiceFactory {
 
   public getAIService(): AIService {
     return this.getOrCreate('ai', () => new AIService());
+  }
+
+  // ─── Singleton Accessors ──────────────────────────────
+  public getLogger(): Logger {
+    return Logger.getInstance();
+  }
+
+  public getConfig(): ConfigManager {
+    return ConfigManager.getInstance();
+  }
+
+  public getNotificationSubject(): NotificationSubject {
+    return NotificationSubject.getInstance();
+  }
+
+  // ─── Initialization ───────────────────────────────────
+  /**
+   * Wire up default observers during app bootstrap.
+   */
+  public initializeObservers(): void {
+    const subject = this.getNotificationSubject();
+    subject.subscribeAll(new LogObserver());
+    // In production, add: subject.subscribeAll(new PushNotificationObserver());
   }
 
   private getOrCreate<T>(key: string, factory: () => T): T {
