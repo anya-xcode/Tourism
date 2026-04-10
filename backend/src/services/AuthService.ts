@@ -1,4 +1,3 @@
-import { AuthService } from './AuthService';
 import User, { IUser } from '../models/User';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -48,9 +47,10 @@ export class AuthService {
 
   async googleLogin(idToken: string): Promise<{ user: IUser; token: string }> {
     try {
-      // For a robust production env, specify audience: process.env.GOOGLE_CLIENT_ID
+      // Audience is strictly required to successfully verify Google signatures locally
       const ticket = await googleClient.verifyIdToken({
         idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
       });
 
       const payload = ticket.getPayload();
@@ -88,11 +88,10 @@ export class AuthService {
   }
 
   private generateToken(user: IUser): string {
-    return jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
+    const payload = { id: user._id, email: user.email, role: user.role };
+    const secret = process.env.JWT_SECRET || 'secret';
+    const expiresIn = (process.env.JWT_EXPIRES_IN || '7d') as any;
+    return jwt.sign(payload, secret, { expiresIn });
   }
 
   async getUserById(id: string): Promise<IUser | null> {

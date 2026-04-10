@@ -1,4 +1,5 @@
 import Media, { IMedia } from '../models/Media';
+import Place from '../models/Place';
 import CloudinaryConfig from '../config/cloudinary';
 import { MediaType, CloudinaryResponse } from '../types';
 import mongoose from 'mongoose';
@@ -18,7 +19,7 @@ export class MediaService {
     const dataURI = `data:${file.mimetype};base64,${b64}`;
 
     const resourceType = type === MediaType.VIDEO ? 'video' : 'image';
-    
+
     // Using explicit any for upload response as cloudinary types can be tricky
     const uploadRes: any = await this.cloudinary.uploader.upload(dataURI, {
       resource_type: resourceType,
@@ -34,6 +35,13 @@ export class MediaService {
       caption,
     });
 
+    // Automatically sync photo to Place document so it appears in the gallery
+    if (type === MediaType.PHOTO || type === 'photo' as any) {
+      await Place.findByIdAndUpdate(placeId, {
+        $push: { photos: uploadRes.secure_url }
+      });
+    }
+
     return media;
   }
 
@@ -48,7 +56,7 @@ export class MediaService {
     await this.cloudinary.uploader.destroy(media.cloudinaryPublicId, {
       resource_type: media.type === MediaType.VIDEO ? 'video' : 'image',
     });
-    
+
     await media.deleteOne();
   }
 }
