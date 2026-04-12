@@ -18,7 +18,7 @@ router.use('/auth', authRoutes);
 router.use('/places', placeRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/media', mediaRoutes);
-router.use('/reels', reelRoutes);
+router.use('/uploads', reelRoutes);
 router.use('/rides', rideRoutes);
 router.use('/visits', visitRoutes);
 router.use('/threads', threadRoutes);
