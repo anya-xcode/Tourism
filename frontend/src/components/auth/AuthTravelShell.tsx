@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { motion } from 'framer-motion';
 
 type AuthTravelShellProps = {
   children: ReactNode;
@@ -15,7 +16,12 @@ export function AuthTravelShell({ children }: AuthTravelShellProps) {
         />
         <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         
-        <div className="absolute bottom-12 left-12 right-12 z-20 text-white animate-fade-in">
+        <motion.div 
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="absolute bottom-12 left-12 right-12 z-20 text-white"
+        >
           <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-500/20 px-3 py-1 backdrop-blur-md border border-blue-400/30">
             <span className="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
             <span className="text-[12px] font-bold uppercase tracking-widest text-blue-100">Global Discovery</span>
@@ -27,14 +33,19 @@ export function AuthTravelShell({ children }: AuthTravelShellProps) {
           <p className="text-lg font-medium text-white/80 max-w-[320px]">
             Join thousands of travelers exploring the world's most hidden gems.
           </p>
-        </div>
+        </motion.div>
       </div>
 
       {/* Logic Side: Form */}
       <div className="auth-form-side">
-        <div className="w-full max-w-[440px] animate-fade-in">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="w-full max-w-[440px]"
+        >
           {children}
-        </div>
+        </motion.div>
       </div>
     </div>
   );
