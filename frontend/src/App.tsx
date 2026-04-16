@@ -1,13 +1,26 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { Suspense, lazy } from 'react';
 import Navbar from './components/layout/Navbar';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import PlaceDetails from './pages/PlaceDetails';
-import ReelsFeed from './pages/ReelsFeed';
-import ExploreMap from './pages/ExploreMap';
-import AddPlace from './pages/AddPlace';
+
+// Dynamic imports for code splitting
+const HomePage = lazy(() => import('./pages/HomePage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const PlaceDetails = lazy(() => import('./pages/PlaceDetails'));
+const ReelsFeed = lazy(() => import('./pages/ReelsFeed'));
+const ExploreMap = lazy(() => import('./pages/ExploreMap'));
+const AddPlace = lazy(() => import('./pages/AddPlace'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+
+const PageLoader = () => (
+  <div className="flex h-[70vh] items-center justify-center">
+    <div className="text-center">
+      <div className="inline-flex items-center justify-center w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4" />
+      <p className="text-gray-400 font-medium text-sm animate-pulse tracking-wide">Loading Experience...</p>
+    </div>
+  </div>
+);
 
 const AUTH_FULLBLEED = ['/login', '/register'];
 
@@ -34,25 +47,22 @@ function AppRoutes() {
     <div className="app-container min-h-screen bg-[var(--background)] text-[var(--text)]">
       {!authFullBleed && <Navbar />}
       <main style={{ paddingTop: authFullBleed ? 0 : 'calc(var(--header-height) + 12px)' }}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/place/:id" element={<PlaceDetails />} />
-          <Route path="/reels" element={<ReelsFeed />} />
-          <Route path="/map" element={<ExploreMap />} />
-          <Route path="/add-place" element={<PrivateRoute><AddPlace /></PrivateRoute>} />
-          <Route path="/profile" element={
-            <PrivateRoute>
-              <div className="container py-16 px-6">
-                <h1 className="text-4xl font-jakarta font-bold mb-6">My Profile</h1>
-                <div className="glass-card p-8">
-                  <p className="text-[var(--text-muted)]">Profile page coming soon...</p>
-                </div>
-              </div>
-            </PrivateRoute>
-          } />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/place/:id" element={<PlaceDetails />} />
+            <Route path="/uploads" element={<ReelsFeed />} />
+            <Route path="/map" element={<ExploreMap />} />
+            <Route path="/add-place" element={<PrivateRoute><AddPlace /></PrivateRoute>} />
+            <Route path="/profile" element={
+              <PrivateRoute>
+                <ProfilePage />
+              </PrivateRoute>
+            } />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   );
