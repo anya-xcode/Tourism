@@ -1,38 +1,31 @@
-import api from './api';
+import { BaseService } from './BaseService';
+import type { IPlace, PlaceFilters } from '../types';
 
-export const PlaceService = {
-  getPlaces: async (params: any) => {
-    const res = await api.get('/places', { params });
-    return res.data;
-  },
-
-  getPlaceById: async (id: string) => {
-    const res = await api.get(`/places/${id}`);
-    return res.data;
-  },
-
-  getReviews: async (placeId: string) => {
-    const res = await api.get(`/reviews/place/${placeId}`);
-    return res.data;
-  },
-
-  getMedia: async (placeId: string) => {
-    const res = await api.get(`/media/place/${placeId}`);
-    return res.data;
-  },
-
-  getUpcomingEvents: async (placeId: string) => {
-    const res = await api.get('/visits/upcoming', { params: { placeId } });
-    return res.data;
-  },
-
-  compareRides: async (origin: any, destination: any) => {
-    const res = await api.post('/rides/compare', { origin, destination });
-    return res.data;
-  },
-
-  getThreads: async (placeId: string) => {
-    const res = await api.get(`/threads/place/${placeId}`);
-    return res.data;
+/**
+ * PlaceService — OOP class for Place API operations.
+ * Extends BaseService for encapsulated HTTP handling.
+ */
+class PlaceServiceClass extends BaseService {
+  constructor() {
+    super('/places');
   }
-};
+
+  public async getPlaces(filters?: PlaceFilters): Promise<{ places: IPlace[]; total: number }> {
+    return this.get<{ places: IPlace[]; total: number }>('', filters as any);
+  }
+
+  public async getPlaceById(id: string): Promise<IPlace> {
+    return this.get<IPlace>(`/${id}`);
+  }
+
+  public async getNearby(lat: number, lng: number, radius?: number): Promise<IPlace[]> {
+    return this.get<IPlace[]>('/nearby', { lat, lng, radius });
+  }
+
+  public async createPlace(data: Record<string, any>): Promise<IPlace> {
+    return this.post<IPlace>('', data);
+  }
+}
+
+/** Singleton instance */
+export const PlaceService = new PlaceServiceClass();
