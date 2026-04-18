@@ -32,7 +32,6 @@ A unified AI-assisted travel environment where users can:
 - **Upload & Explore** real experiences with photos, videos, and reviews
 - **View Structured Details** (GPS, budget, hours, visit duration, tags)
 - **Compare Travel Costs** across ride providers
-- **Watch Short Travel Reels** for quick place discovery
 - **Schedule & Join Group Visits** with other travelers
 - **Receive AI-Powered Guidance** for recommendations, itineraries, and moderation
 
@@ -44,7 +43,6 @@ AI acts as an intelligence layer enhancing recommendations, content moderation, 
 
 ### 4.1 Community Place Discovery
 - Users upload new places with structured metadata
-- AI-powered duplicate detection prevents redundant entries
 - Experience-based updates enrich existing place profiles
 
 ### 4.2 Experience & Media Sharing
@@ -61,13 +59,8 @@ Every place includes:
 -  Suggested visit duration
 -  Category tags (Nature, Food, Heritage, Adventure, etc.)
 
-### 4.4 AI Recommendation Engine
-- Personalized place suggestions based on user preferences
-- Budget-aware exploration recommendations
-- Smart itinerary hints and contextual travel insights
-- Similarity-based discovery ("Users who liked X also liked Y")
 
-### 4.5 Ride Fare Estimation & Comparison
+### 4.4 Ride Fare Estimation & Comparison
 - Estimated cost comparison across ride providers (Uber, Ola, etc.)
 - Travel time estimation for each provider
 - Cheapest option highlighting
