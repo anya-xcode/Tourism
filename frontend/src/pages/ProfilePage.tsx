@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { BookmarkService } from '../services/BookmarkService';
 import type { IPlace } from '../types';
 import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 
 /**
  * ProfilePage — User profile dashboard.
@@ -31,12 +32,12 @@ const ProfilePage = () => {
 
   if (!user) return null;
 
-  const stagger = {
+  const stagger: Variants = {
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.08 } }
   };
 
-  const fadeUp = {
+  const fadeUp: Variants = {
     hidden: { opacity: 0, y: 16 },
     show: { opacity: 1, y: 0, transition: { type: 'spring', damping: 22, stiffness: 220 } }
   };

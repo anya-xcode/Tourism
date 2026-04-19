@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MapPin, Compass, ChevronDown, Filter, Plus } from 'lucide-react';
+import { Search, Compass, ChevronDown, Filter, Plus } from 'lucide-react';
 import { PlaceService } from '../services/PlaceService';
 import PlaceCard from '../components/places/PlaceCard';
 import { PlaceCategory } from '../types';

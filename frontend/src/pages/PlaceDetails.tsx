@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Star, MapPin, Clock, Calendar, Users, MessageSquare,
-  ChevronRight, Car, Compass, Camera, Info, Heart, Award, Share2,
+  ChevronRight, Car, Camera, Info, Heart, Award,
   Send, ThumbsUp
 } from 'lucide-react';
 import { PlaceService } from '../services/PlaceService';

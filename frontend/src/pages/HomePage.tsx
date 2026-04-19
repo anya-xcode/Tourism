@@ -28,7 +28,6 @@ const HERO_IMAGES = [
 ];
 
 const HomePage = () => {
-  const { user } = useAuth();
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
