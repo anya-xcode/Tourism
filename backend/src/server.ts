@@ -59,7 +59,6 @@ if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     logger.info(`🚀 Server running on port ${PORT} in ${config.getNodeEnv()} mode`, 'Server');
   });
-} else {
-  // Export for Vercel serverless
-  module.exports = app;
 }
+
+export default app;
