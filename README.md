@@ -2,14 +2,14 @@
 
 A full-stack travel exploration application that combines community insights with AI recommendations to help discover amazing travel destinations.
 
-## 🚀 Live Deployment
+##  Live Deployment
 
 | Component | URL |
 |-----------|-----|
 | **Frontend** | https://tourismfront-sigma.vercel.app/ |
 | **Backend API** | https://tourism-two-lovat.vercel.app/api |
 
-## 📦 Project Structure
+##  Project Structure
 
 ```
 tourism/
@@ -18,7 +18,7 @@ tourism/
 └── docs/              # Architecture & diagrams
 ```
 
-## 💻 Tech Stack
+##  Tech Stack
 
 ### Frontend
 - React 19 + TypeScript
@@ -38,21 +38,21 @@ tourism/
 - Helmet (security)
 - CORS support
 
-## 🌟 Features
+##  Features
 
-- 🗺️ **Interactive Map** - Explore places on an interactive map
-- 🏆 **Place Discovery** - Find unique places with community reviews
-- 📸 **Media Sharing** - Upload and share travel photos
-- 🎬 **Reels Feed** - Discover travel video content
-- 💬 **Community Reviews** - Read and write reviews
-- 🚗 **Ride Comparison** - Compare ride sharing options
-- 📍 **Visit Events** - Schedule and RSVP for travel events
-- 🤖 **AI Recommendations** - Get personalized place recommendations
-- 🔖 **Bookmarks** - Save favorite places
-- 💭 **Discussion Threads** - Join travel discussions
-- 👤 **User Profiles** - Manage your travel profile
+-  **Interactive Map** - Explore places on an interactive map
+-  **Place Discovery** - Find unique places with community reviews
+-  **Media Sharing** - Upload and share travel photos
+-  **Reels Feed** - Discover travel video content
+-  **Community Reviews** - Read and write reviews
+-  **Ride Comparison** - Compare ride sharing options
+-  **Visit Events** - Schedule and RSVP for travel events
+-  **AI Recommendations** - Get personalized place recommendations
+-  **Bookmarks** - Save favorite places
+-  **Discussion Threads** - Join travel discussions
+-  **User Profiles** - Manage your travel profile
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 - Node.js v20+
@@ -97,7 +97,7 @@ CORS_ORIGIN=https://tourismfront-sigma.vercel.app
 npm run dev
 ```
 
-## 📚 Documentation
+##  Documentation
 
 See the [docs/](docs/) folder for:
 - Architecture diagrams
@@ -105,7 +105,7 @@ See the [docs/](docs/) folder for:
 - Sequence diagrams
 - Use case diagrams
 
-## 🔐 Environment Variables
+##  Environment Variables
 
 ### Frontend (.env)
 ```env
@@ -130,7 +130,7 @@ NODE_ENV=production
 CORS_ORIGIN=https://tourismfront-sigma.vercel.app
 ```
 
-## 🚢 Deployment
+## Deployment
 
 ### Vercel Deployment
 
@@ -147,7 +147,7 @@ CORS_ORIGIN=https://tourismfront-sigma.vercel.app
 4. Configure as Node.js app
 5. Auto-deploys on push
 
-## 📝 API Endpoints
+## API Endpoints
 
 ### Health Check
 - `GET /health` - Server status
@@ -172,7 +172,7 @@ CORS_ORIGIN=https://tourismfront-sigma.vercel.app
 
 *See backend routes for complete API documentation*
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! Please follow these steps:
 1. Fork the repository
@@ -191,4 +191,3 @@ For questions or feedback, please open an issue on GitHub.
 
 ---
 
-**Made with ❤️ for travel enthusiasts**
