@@ -9,6 +9,7 @@ export interface IUser extends Document {
   role: UserRole;
   preferences: string[];
   city: string;
+  googleId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +23,7 @@ const UserSchema = new Schema<IUser>(
     role: { type: String, enum: Object.values(UserRole), default: UserRole.USER },
     preferences: [{ type: String }],
     city: { type: String, default: '' },
+    googleId: { type: String, default: null },
   },
   { timestamps: true }
 );
