@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import {
   Search, MapPin, Users, TrendingUp, Compass, ArrowRight, Globe, Map,
   Palmtree, UtensilsCrossed, Landmark, Mountain, ShoppingBag, Moon, Sparkles, Plus

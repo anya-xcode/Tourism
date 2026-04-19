@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, Plus, X, Image as ImageIcon, MapPin, Tag, Clock, DollarSign, FileText, Compass } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from '../services/api';
 import { PlaceService } from '../services/PlaceService';
 import { MediaService } from '../services/MediaService';
 import { PlaceCategory, BudgetRange } from '../types';

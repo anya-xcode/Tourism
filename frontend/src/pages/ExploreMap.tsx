@@ -3,7 +3,6 @@ import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-map
 import { PlaceService } from '../services/PlaceService';
 import { Search, Map as MapIcon, Star, MapPin, ChevronRight, Layers, Navigation, LocateFixed } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import type { IPlace } from '../types';
 
 const containerStyle = { width: '100%', height: '100%' };
