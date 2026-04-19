@@ -27,9 +27,20 @@ ServiceFactory.getInstance().initializeObservers();
 
 logger.info('All singletons initialized successfully', 'Bootstrap');
 
+// Configure CORS based on environment variable
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:3001'
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 
