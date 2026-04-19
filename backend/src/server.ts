@@ -14,7 +14,7 @@ import routes from './routes';
 const app = express();
 const config = ConfigManager.getInstance();
 const logger = Logger.getInstance();
-const PORT = config.getPort();
+const PORT = process.env.PORT || config.getPort();
 
 // Connect to Database (Singleton)
 Database.getInstance().connect();
@@ -44,6 +44,11 @@ app.get('/health', (req, res) => {
 // Error Handling Middleware
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  logger.info(`🚀 Server running on port ${PORT} in ${config.getNodeEnv()} mode`, 'Server');
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    logger.info(`🚀 Server running on port ${PORT} in ${config.getNodeEnv()} mode`, 'Server');
+  });
+} else {
+  // Export for Vercel serverless
+  module.exports = app;
+}
