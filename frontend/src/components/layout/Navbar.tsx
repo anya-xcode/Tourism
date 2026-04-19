@@ -68,13 +68,7 @@ const Navbar = () => {
               transparentHero ? 'text-white drop-shadow-[0_2px_14px_rgba(0,0,0,0.35)]' : ''
             }`}
           >
-            Travel
-            <span className={transparentHero ? 'text-cyan-200' : 'text-[var(--primary)]'}>Explorer</span>
-            {!transparentHero && (
-              <span className="ml-2 align-top text-[10px] font-black tracking-widest bg-[var(--primary)] text-white px-2 py-0.5 rounded-full">
-                PRO-UI
-              </span>
-            )}
+            <span className={transparentHero ? 'text-cyan-200' : 'text-[var(--primary)]'}>Tourism</span>
           </span>
         </Link>
 
@@ -131,13 +125,13 @@ const Navbar = () => {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link
                   to="/add-place"
-                  className={`flex items-center gap-2 rounded-full px-4 py-2 font-bold text-sm transition-all shadow-sm ${
+                  className={`flex items-center gap-2 rounded-xl px-5 py-2.5 font-bold text-sm transition-all shadow-lg ${
                     transparentHero
-                      ? 'bg-white/20 text-white hover:bg-white/30 border border-white/25'
-                      : 'bg-teal-600 text-white hover:bg-teal-700'
+                      ? 'bg-white/20 text-white hover:bg-white/30 border border-white/25 backdrop-blur-md'
+                      : 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white hover:brightness-110 shadow-teal-500/20'
                   }`}
                 >
-                  <Plus size={16} strokeWidth={3} />
+                  <Plus size={18} strokeWidth={3} />
                   <span>Share Place</span>
                 </Link>
               </motion.div>
@@ -252,7 +246,7 @@ const Navbar = () => {
                   <div className="p-2 bg-[var(--primary)] rounded-xl text-white">
                     <Globe size={18} />
                   </div>
-                  <span className="font-poppins font-bold text-lg">Travel Explorer</span>
+                  <span className="font-poppins font-bold text-lg">Tourism</span>
                 </div>
                 
                 <div className="space-y-6">

@@ -5,9 +5,19 @@ import { OAuth2Client } from 'google-auth-library';
 import { RegisterDTO, LoginDTO, UserRole } from '../types';
 import { AppError } from '../middleware/error';
 
-const googleClient = new OAuth2Client();
-
 export class AuthService {
+  private _googleClient: OAuth2Client | null = null;
+
+  private get googleClient(): OAuth2Client {
+    if (!this._googleClient) {
+      if (!process.env.GOOGLE_CLIENT_ID) {
+        console.error('CRITICAL: GOOGLE_CLIENT_ID is not defined in environment variables');
+      }
+      this._googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    }
+    return this._googleClient;
+  }
+
   async register(data: RegisterDTO): Promise<{ user: IUser; token: string }> {
     const existingUser = await User.findOne({ email: data.email });
     if (existingUser) {
@@ -48,14 +58,14 @@ export class AuthService {
   async googleLogin(idToken: string): Promise<{ user: IUser; token: string }> {
     try {
       // Audience is strictly required to successfully verify Google signatures locally
-      const ticket = await googleClient.verifyIdToken({
+      const ticket = await this.googleClient.verifyIdToken({
         idToken,
         audience: process.env.GOOGLE_CLIENT_ID,
       });
 
       const payload = ticket.getPayload();
       if (!payload || !payload.email) {
-        throw new AppError('Invalid Google token', 401);
+        throw new AppError('Invalid Google token payload', 401);
       }
 
       const { sub: googleId, email, name, picture } = payload;
@@ -81,9 +91,13 @@ export class AuthService {
 
       const token = this.generateToken(user);
       return { user, token };
-    } catch (error) {
-      console.error('Google OAuth Error:', error);
-      throw new AppError('Failed to authenticate with Google', 401);
+    } catch (error: any) {
+      console.error('CRITICAL GOOGLE AUTH FAILURE:', {
+        message: error.message,
+        stack: error.stack,
+        details: error.response?.data || error
+      });
+      throw new AppError(error.message || 'Failed to authenticate with Google', 401);
     }
   }
 

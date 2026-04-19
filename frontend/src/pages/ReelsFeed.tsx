@@ -46,151 +46,201 @@ const ReelsFeed = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] pt-[calc(var(--header-height)+20px)] pb-20">
+    <div style={{ minHeight: '100vh', background: '#fafbfc', paddingBottom: 80 }}>
       
-      {/* ─── STICKY HEADER & FILTERS ─── */}
-      <div className="sticky top-[var(--header-height)] z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 shadow-sm py-4 mb-8">
-        <div className="container-custom">
+      {/* ─── HEADER & FILTERS ─── */}
+      <div style={{
+        position: 'sticky', top: 'var(--header-height)', zIndex: 40,
+        background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)',
+        borderBottom: '1px solid #f1f5f9',
+      }}>
+        <div className="container-custom" style={{ maxWidth: 1280, padding: '20px 24px' }}>
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-             <div className="flex justify-between items-center w-full md:w-auto">
-                <div>
-                   <h1 className="text-2xl font-bold font-poppins text-gray-900 tracking-tight">Community Experiences</h1>
-                   <p className="text-sm font-medium text-gray-500">Discover handpicked locations updated by travelers.</p>
-                </div>
-                {/* Mobile FAB-style icon near title */}
-                <Link to="/add-place" className="md:hidden bg-teal-600 text-white shadow-md flex items-center justify-center p-2.5 rounded-xl transition-all active:scale-95">
-                   <Plus size={20} strokeWidth={2.5} />
-                </Link>
-             </div>
-             
-             {/* Search Bar & Desktop CTA */}
-             <div className="flex items-center gap-3 w-full md:w-auto flex-1 md:flex-none justify-end">
-                <div className="relative w-full md:w-80">
-                   <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                   <input 
-                     type="text" 
-                     placeholder="Search destinations..." 
-                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-3 pl-12 pr-4 text-sm font-bold text-gray-800 placeholder:font-medium placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all shadow-sm"
-                     value={searchTerm}
-                     onChange={(e) => setSearchTerm(e.target.value)}
-                   />
-                </div>
-                
-                <Link to="/add-place" className="hidden md:flex flex-shrink-0 items-center justify-center gap-2 bg-teal-600 text-white shadow-sm h-[46px] px-6 rounded-2xl font-bold text-sm transition-all hover:bg-teal-700 active:scale-95">
-                   <Plus size={18} strokeWidth={3} />
-                   <span>Add Place</span>
-                </Link>
-             </div>
+          {/* Row 1: Title + Search + CTA */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <h1 className="font-poppins" style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>
+                Community Experiences
+              </h1>
+              <p style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, margin: '4px 0 0' }}>
+                Discover handpicked locations updated by travelers.
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 auto', maxWidth: 480, justifyContent: 'flex-end' }}>
+              {/* Search Bar */}
+              <div style={{ position: 'relative', flex: 1, maxWidth: 320 }}>
+                <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1', pointerEvents: 'none' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search destinations..." 
+                  style={{
+                    width: '100%', background: '#f8fafc', border: '1.5px solid #f1f5f9',
+                    borderRadius: 12, padding: '10px 16px 10px 40px', fontSize: 13, fontWeight: 500,
+                    outline: 'none', color: '#0f172a', transition: 'all 0.2s',
+                    fontFamily: 'Inter, sans-serif',
+                  }}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.background = '#fff'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#f1f5f9'; e.currentTarget.style.background = '#f8fafc'; }}
+                />
+              </div>
+
+              {/* Add Place Button */}
+              <Link to="/add-place" className="no-underline" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '10px 18px', background: '#0f172a', color: '#fff',
+                borderRadius: 12, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
+                transition: 'all 0.2s', flexShrink: 0,
+              }}>
+                <Plus size={16} strokeWidth={3} />
+                <span className="hidden sm:inline">Add Place</span>
+              </Link>
+            </div>
           </div>
           
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-             
-             {/* Category Pills */}
-             <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 w-full md:w-auto flex-1">
-                {CATEGORIES.map(cat => (
-                  <button 
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={`whitespace-nowrap px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                      activeCategory === cat 
-                        ? 'bg-[var(--primary)] text-white shadow-teal' 
-                        : 'bg-white text-gray-500 border border-gray-100 hover:border-[var(--primary-light)] hover:text-[var(--primary)]'
-                    }`}
-                  >
-                     {cat}
-                  </button>
-                ))}
-             </div>
-             
-             <div className="w-px h-8 bg-gray-200 hidden md:block" />
-             
-             {/* Dropdown Filters */}
-             <div className="flex gap-3 w-full md:w-auto">
-               <div className="relative group flex-1 md:w-36">
-                  <select 
-                    className="w-full bg-white border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-xs font-black uppercase tracking-widest text-gray-600 appearance-none shadow-sm cursor-pointer outline-none focus:ring-2 focus:ring-gray-100"
-                    value={activeCity}
-                    onChange={(e) => setActiveCity(e.target.value)}
-                  >
-                     {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <MapPin size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--primary)] pointer-events-none" />
-                  <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-               </div>
-               
-               <div className="relative group flex-1 md:w-40">
-                  <select 
-                    className="w-full bg-white border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-xs font-black uppercase tracking-widest text-gray-600 appearance-none shadow-sm cursor-pointer outline-none focus:ring-2 focus:ring-gray-100"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                  >
-                     <option value="newest">Latest First</option>
-                     <option value="rating">Top Rated</option>
-                  </select>
-                  <Filter size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-               </div>
-             </div>
-             
+          {/* Row 2: Category Pills + Dropdown Filters */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            
+            {/* City Pills */}
+            <div className="scrollbar-hide" style={{ display: 'flex', gap: 6, overflowX: 'auto', flex: '1 1 auto', paddingBottom: 2 }}>
+              {CITIES.map(city => (
+                <button 
+                  key={city}
+                  onClick={() => setActiveCity(city)}
+                  style={{
+                    whiteSpace: 'nowrap', padding: '7px 14px', borderRadius: 9,
+                    fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer',
+                    transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.04em',
+                    ...(activeCity === city
+                      ? { background: '#0f172a', color: '#fff', boxShadow: '0 2px 8px -2px rgba(15,23,42,0.2)' }
+                      : { background: '#fff', color: '#64748b', boxShadow: '0 1px 3px 0 rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.04)' }
+                    ),
+                  }}
+                >
+                  {city}
+                </button>
+              ))}
+            </div>
+            
+            <div style={{ width: 1, height: 28, background: '#e2e8f0', flexShrink: 0 }} className="hidden md:block" />
+            
+            {/* Dropdown Filters */}
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <div style={{ position: 'relative' }}>
+                <Compass size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#6366f1', pointerEvents: 'none' }} />
+                <select 
+                  style={{
+                    background: '#fff', border: '1.5px solid #f1f5f9', borderRadius: 9,
+                    padding: '7px 28px 7px 30px', fontSize: 11, fontWeight: 700,
+                    color: '#475569', appearance: 'none', cursor: 'pointer', outline: 'none',
+                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                    boxShadow: '0 1px 3px 0 rgba(0,0,0,0.04)',
+                  }}
+                  value={activeCategory}
+                  onChange={(e) => setActiveCategory(e.target.value)}
+                >
+                  <option disabled>Category</option>
+                  {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat === 'All' ? 'All Categories' : cat}</option>)}
+                </select>
+                <ChevronDown size={12} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+              </div>
+              
+              <div style={{ position: 'relative' }}>
+                <Filter size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                <select 
+                  style={{
+                    background: '#fff', border: '1.5px solid #f1f5f9', borderRadius: 9,
+                    padding: '7px 28px 7px 30px', fontSize: 11, fontWeight: 700,
+                    color: '#475569', appearance: 'none', cursor: 'pointer', outline: 'none',
+                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                    boxShadow: '0 1px 3px 0 rgba(0,0,0,0.04)',
+                  }}
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <option value="newest">Latest First</option>
+                  <option value="rating">Top Rated</option>
+                </select>
+                <ChevronDown size={12} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+              </div>
+            </div>
           </div>
 
         </div>
       </div>
       
       {/* ─── GRID CONTENT ─── */}
-      <div className="container-custom">
-         {loading ? (
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-             {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-               <div key={i} className="bg-white rounded-[20px] p-2 border border-gray-100 shadow-sm animate-pulse h-[340px]">
-                 <div className="w-full h-48 bg-gray-100 rounded-[16px] mb-4" />
-                 <div className="px-3">
-                   <div className="w-2/3 h-5 bg-gray-100 rounded-lg mb-2" />
-                   <div className="w-1/2 h-4 bg-gray-50 rounded-lg mb-4" />
-                   <div className="w-full h-8 bg-gray-50 rounded-lg" />
-                 </div>
-               </div>
-             ))}
-           </div>
-         ) : places.length > 0 ? (
-           <motion.div 
-             initial={{ opacity: 0 }}
-             animate={{ opacity: 1 }}
-             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-           >
-             <AnimatePresence>
-                {places.map((place, i) => (
-                  <motion.div
-                    key={place._id}
-                    layout // Animate items when filtering
-                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 25, delay: i * 0.05 }}
-                  >
-                     <PlaceCard place={place} />
-                  </motion.div>
-                ))}
-             </AnimatePresence>
-           </motion.div>
-         ) : (
-           <div className="flex flex-col items-center justify-center py-20 px-4">
-              <div className="w-24 h-24 bg-white rounded-[32px] border border-gray-100 shadow-sm flex items-center justify-center mb-6">
-                 <Compass size={40} className="text-[var(--primary-light)] opacity-50" />
+      <div className="container-custom" style={{ maxWidth: 1280, paddingTop: 28 }}>
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" style={{ gap: 20 }}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div key={i} style={{ borderRadius: 20, overflow: 'hidden', background: '#fff', border: '1px solid #f1f5f9' }} className="animate-pulse">
+                <div style={{ aspectRatio: '3/4', background: '#f1f5f9' }} />
+                <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ height: 12, background: '#f1f5f9', borderRadius: 99, width: '75%' }} />
+                  <div style={{ height: 10, background: '#f8fafc', borderRadius: 99, width: '55%' }} />
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">No experiences found</h3>
-              <p className="text-sm font-medium text-gray-500 mb-8 max-w-sm text-center">
-                 We couldn't find any locations matching your precise radar. Try clearing some filters.
-              </p>
-              <button 
-                onClick={() => { setActiveCategory('All'); setActiveCity('All'); setSearchTerm(''); }}
-                className="bg-white text-gray-900 border border-gray-200 shadow-sm py-3 px-8 rounded-full text-xs font-black uppercase tracking-widest hover:border-gray-300 transition-colors"
-              >
-                Reset Radar
-              </button>
-           </div>
-         )}
+            ))}
+          </div>
+        ) : places.length > 0 ? (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            style={{ gap: 20 }}
+          >
+            <AnimatePresence>
+              {places.map((place, i) => (
+                <motion.div
+                  key={place._id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 16 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25, delay: i * 0.04 }}
+                >
+                  <PlaceCard place={place} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', damping: 20 }}
+            style={{
+              textAlign: 'center', padding: '4rem 2rem',
+              background: '#fff', borderRadius: 24, border: '1px solid #f1f5f9',
+            }}
+          >
+            <div style={{
+              width: 72, height: 72, background: '#f8fafc', borderRadius: 20,
+              border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', margin: '0 auto 20px',
+            }}>
+              <Compass size={32} style={{ color: '#cbd5e1' }} />
+            </div>
+            <h3 className="font-poppins" style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>No experiences found</h3>
+            <p style={{ fontSize: 14, color: '#94a3b8', maxWidth: 380, margin: '0 auto 24px', lineHeight: 1.6, fontWeight: 500 }}>
+              We couldn't find any locations matching your criteria. Try clearing some filters.
+            </p>
+            <button 
+              onClick={() => { setActiveCategory('All'); setActiveCity('All'); setSearchTerm(''); }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '10px 24px', borderRadius: 12,
+                background: '#0f172a', color: '#fff', fontSize: 13, fontWeight: 700,
+                border: 'none', cursor: 'pointer',
+              }}
+            >
+              Reset Filters
+            </button>
+          </motion.div>
+        )}
       </div>
 
     </div>

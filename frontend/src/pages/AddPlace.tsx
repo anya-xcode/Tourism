@@ -1,8 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Upload, MapPin, Tag, Clock, Save, X, Plus, Info, ChevronLeft, Map as MapIcon, Image as ImageIcon, Award } from 'lucide-react';
+import { ChevronLeft, Plus, X, Image as ImageIcon, MapPin, Tag, Clock, DollarSign, FileText, Compass } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
+import { PlaceService } from '../services/PlaceService';
+import { MediaService } from '../services/MediaService';
 import { PlaceCategory, BudgetRange } from '../types';
+
+const sections = [
+  { id: 'basics', label: 'Basics', icon: <FileText size={14} /> },
+  { id: 'location', label: 'Location', icon: <MapPin size={14} /> },
+  { id: 'photos', label: 'Photos', icon: <ImageIcon size={14} /> },
+  { id: 'details', label: 'Details', icon: <Tag size={14} /> },
+];
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', background: '#fff', border: '1.5px solid #e5e7eb',
+  borderRadius: 12, padding: '12px 16px', fontSize: 14, fontWeight: 500,
+  outline: 'none', color: '#0f172a', transition: 'all 0.2s',
+  fontFamily: 'Inter, sans-serif',
+};
+
+const labelStyle: React.CSSProperties = {
+  display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 8,
+};
+
+const SectionCard = ({ children, style, ...props }: React.HTMLAttributes<HTMLDivElement> & { style?: React.CSSProperties }) => (
+  <div
+    {...props}
+    style={{
+      background: '#fff', borderRadius: 20, border: '1.5px solid #f1f5f9',
+      padding: '28px 28px', display: 'flex', flexDirection: 'column', gap: 20,
+      boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)',
+      transition: 'box-shadow 0.3s',
+      ...style,
+    }}
+    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 20px -4px rgba(0,0,0,0.06)'; }}
+    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 4px 0 rgba(0,0,0,0.03)'; }}
+  >
+    {children}
+  </div>
+);
 
 const AddPlace = () => {
   const navigate = useNavigate();
@@ -10,6 +48,8 @@ const AddPlace = () => {
   const [error, setError] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [activeSection, setActiveSection] = useState('basics');
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -24,11 +64,42 @@ const AddPlace = () => {
     longitude: ''
   });
 
+  // Scrollspy
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: '-30% 0px -60% 0px' }
+    );
+    sections.forEach(s => {
+      const el = document.getElementById(s.id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
+      const invalidFiles = selectedFiles.filter(file => !file.type.startsWith('image/'));
+      if (invalidFiles.length > 0) {
+        setError('Only image files are allowed.');
+        return;
+      }
+
+      const largeFiles = selectedFiles.filter(file => file.size > 5 * 1024 * 1024); // 5MB limit
+      if (largeFiles.length > 0) {
+        setError('Images must be smaller than 5MB.');
+        return;
+      }
+
+      setError('');
       setFiles([...files, ...selectedFiles]);
-      
       const newPreviews = selectedFiles.map(file => URL.createObjectURL(file));
       setPreviews([...previews, ...newPreviews]);
     }
@@ -38,7 +109,6 @@ const AddPlace = () => {
     const newFiles = [...files];
     newFiles.splice(index, 1);
     setFiles(newFiles);
-
     const newPreviews = [...previews];
     URL.revokeObjectURL(newPreviews[index]);
     newPreviews.splice(index, 1);
@@ -47,300 +117,426 @@ const AddPlace = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (files.length === 0) {
+      setError('Please upload at least one photo.');
+      return;
+    }
+
+    // Auto-assigning default coordinates since precise manual entry is removed
+    const lat = 18.5204; // Default latitude (e.g., Pune)
+    const lng = 73.8567; // Default longitude
+
     setLoading(true);
     setError('');
-
+    
     try {
-      const placeRes = await api.post('/places', {
+      const placeData = {
         ...formData,
-        tags: formData.tags.split(',').map(t => t.trim()),
-        latitude: parseFloat(formData.latitude),
-        longitude: parseFloat(formData.longitude)
-      });
+        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        latitude: lat,
+        longitude: lng,
+        suggestedDurationMinutes: Number(formData.suggestedDurationMinutes) || 60
+      };
 
-      const placeId = placeRes.data._id;
+      const placeRes = await PlaceService.createPlace(placeData);
+      const placeId = (placeRes as any)._id;
 
       if (files.length > 0) {
+        // Sequentially upload photos
         for (const file of files) {
-          const uploadData = new FormData();
-          uploadData.append('file', file);
-          uploadData.append('placeId', placeId);
-          uploadData.append('type', 'image');
-          await api.post('/media', uploadData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
+          await MediaService.upload(file, placeId, 'photo');
         }
       }
 
       navigate(`/place/${placeId}`);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to add place');
+      console.error('Submission failed:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to publish place');
     } finally {
       setLoading(false);
     }
   };
 
+
+
   return (
-    <div className="bg-subtle min-h-screen pb-20">
-      <div className="bg-white border-b border-[var(--border)] py-8 mb-10 shadow-sm">
-        <div className="container">
-          <Link to="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors mb-6">
-            <ChevronLeft size={16} /> Back to Explorer
+    <div style={{ background: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
+      {/* ─── Sticky Progress Bar ─── */}
+      <div style={{
+        position: 'sticky', top: 'var(--header-height)', zIndex: 40,
+        background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)',
+        borderBottom: '1px solid #f1f5f9',
+      }}>
+        <div style={{
+          maxWidth: 720, margin: '0 auto', padding: '0 24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          height: 56,
+        }}>
+          <Link to="/" className="no-underline" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontSize: 13, fontWeight: 500, color: '#94a3b8', transition: 'color 0.2s',
+          }}>
+            <ChevronLeft size={16} /> Cancel
           </Link>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-center gap-5">
-              <div className="w-16 h-16 bg-[var(--primary-soft)] rounded-2xl flex items-center justify-center text-[var(--primary)] shadow-sm">
-                <Plus size={32} />
-              </div>
-              <div>
-                <h1 className="text-3xl font-poppins font-bold">Share a New Gem</h1>
-                <p className="text-[var(--text-muted)] font-medium">Contribute to the collective travel knowledge</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-               <button onClick={() => navigate(-1)} className="btn btn-outline px-6 rounded-xl">Discard Changes</button>
-               <button form="add-place-form" type="submit" disabled={loading} className="btn btn-primary px-8 rounded-xl shadow-lg shadow-[var(--primary-glow)]">
-                 {loading ? 'Publishing...' : 'Publish Experience'} <Save size={18} />
-               </button>
-            </div>
+
+          {/* Step indicators */}
+          <div style={{ display: 'flex', gap: 4 }} className="hidden sm:flex">
+            {sections.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                  border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                  ...(activeSection === s.id
+                    ? { background: '#0f172a', color: '#fff' }
+                    : { background: 'transparent', color: '#94a3b8' }
+                  ),
+                }}
+              >
+                {s.icon} {s.label}
+              </button>
+            ))}
           </div>
+
+          <button
+            form="add-place-form"
+            type="submit"
+            disabled={loading}
+            style={{
+              fontSize: 13, fontWeight: 700, background: '#0f172a', color: '#fff',
+              padding: '8px 22px', borderRadius: 10, border: 'none', cursor: 'pointer',
+              opacity: loading ? 0.4 : 1, transition: 'all 0.2s',
+            }}
+          >
+            {loading ? 'Saving...' : 'Publish'}
+          </button>
         </div>
       </div>
 
-      <div className="container">
-        {error && (
-            <div className="max-w-5xl mx-auto p-4 mb-8 bg-red-50 border border-red-100 text-red-600 rounded-2xl font-bold flex items-center gap-3 animate-fade-in text-sm">
-                <X size={18} className="text-red-500" /> {error}
-            </div>
-        )}
+      {/* ─── Main Content ─── */}
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px 140px' }}>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          {/* Error */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                style={{
+                  marginBottom: 28, padding: '14px 18px', background: '#fef2f2',
+                  border: '1px solid #fecaca', color: '#dc2626', borderRadius: 14,
+                  fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 10,
+                }}
+              >
+                <X size={15} /> {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <form id="add-place-form" onSubmit={handleSubmit} className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Main Content Columns */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Basic Info */}
-            <div className="card p-10 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-2 h-full bg-[var(--primary)] opacity-80" />
-              <h3 className="text-xl mb-8 flex items-center gap-3">
-                <Info size={22} className="text-[var(--primary)]" /> Basic Information
-              </h3>
-              
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-light)] ml-1">Place Title</label>
-                  <input 
-                    type="text" required
-                    className="input-field !pl-4 shadow-sm"
-                    placeholder="e.g. Secret Rooftop Garden"
-                    value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
-                  />
+          {/* Page header */}
+          <div style={{ marginBottom: 36 }}>
+            <h1 className="font-poppins" style={{ fontSize: 32, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>
+              Share a new place
+            </h1>
+            <p style={{ fontSize: 15, color: '#94a3b8', fontWeight: 500, margin: 0 }}>
+              Help the community discover incredible experiences.
+            </p>
+          </div>
+
+          <form id="add-place-form" ref={formRef} onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            {/* ─── Section 1: Basics ─── */}
+            <SectionCard id="basics">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10, background: '#eef2ff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1',
+                }}>
+                  <FileText size={18} />
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-light)] ml-1">Detailed Description</label>
-                  <textarea 
-                    required rows={5}
-                    className="w-full bg-white border border-[var(--border)] rounded-2xl py-4 px-5 outline-none focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-soft)] transition-all resize-none shadow-sm placeholder:text-[var(--text-light)]"
-                    placeholder="Tell the community what makes this spot special. The vibe, the view, the best time to visit..."
-                    value={formData.description}
-                    onChange={e => setFormData({...formData, description: e.target.value})}
-                  />
+                <div>
+                  <h2 className="font-poppins" style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>The Basics</h2>
+                  <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Name, description & category</p>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-light)] ml-1">Category</label>
-                    <div className="relative">
-                      <select 
-                        className="w-full bg-white border border-[var(--border)] rounded-2xl py-4 px-5 outline-none focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-soft)] transition-all appearance-none cursor-pointer shadow-sm font-600"
-                        value={formData.category}
-                        onChange={e => setFormData({...formData, category: e.target.value as any})}
-                      >
-                        {Object.values(PlaceCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                      </select>
-                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]">
-                        <Plus size={16} />
-                      </div>
-                    </div>
+              <div>
+                <label style={labelStyle}>Place Title <span style={{ color: '#ef4444' }}>*</span></label>
+                <input
+                  type="text" required style={inputStyle}
+                  placeholder="e.g. Hidden Rooftop Cafe"
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Description <span style={{ color: '#ef4444' }}>*</span></label>
+                <textarea
+                  required rows={5}
+                  style={{ ...inputStyle, resize: 'vertical' as const, lineHeight: 1.7 }}
+                  placeholder="What makes this place special? Share your honest experience..."
+                  value={formData.description}
+                  onChange={e => setFormData({...formData, description: e.target.value})}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Category</label>
+                  <div style={{ position: 'relative' }}>
+                    <Compass size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1', pointerEvents: 'none' }} />
+                    <select
+                      style={{ ...inputStyle, paddingLeft: 40, cursor: 'pointer', appearance: 'none' as const }}
+                      value={formData.category}
+                      onChange={e => setFormData({...formData, category: e.target.value as any})}
+                    >
+                      {Object.values(PlaceCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-light)] ml-1">Budget level</label>
-                    <div className="relative">
-                      <select 
-                        className="w-full bg-white border border-[var(--border)] rounded-2xl py-4 px-5 outline-none focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-soft)] transition-all appearance-none cursor-pointer shadow-sm font-600"
-                        value={formData.budgetRange}
-                        onChange={e => setFormData({...formData, budgetRange: e.target.value as any})}
-                      >
-                        {Object.values(BudgetRange).map(br => <option key={br} value={br}>{br}</option>)}
-                      </select>
-                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]">
-                        <Tag size={16} />
-                      </div>
-                    </div>
+                </div>
+                <div>
+                  <label style={labelStyle}>Budget Range</label>
+                  <div style={{ position: 'relative' }}>
+                    <DollarSign size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1', pointerEvents: 'none' }} />
+                    <select
+                      style={{ ...inputStyle, paddingLeft: 40, cursor: 'pointer', appearance: 'none' as const }}
+                      value={formData.budgetRange}
+                      onChange={e => setFormData({...formData, budgetRange: e.target.value as any})}
+                    >
+                      {Object.values(BudgetRange).map(br => <option key={br} value={br}>{br}</option>)}
+                    </select>
                   </div>
                 </div>
               </div>
-            </div>
+            </SectionCard>
 
-            {/* Geographical Data */}
-            <div className="card p-10 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-2 h-full bg-[var(--secondary)] opacity-80" />
-              <h3 className="text-xl mb-8 flex items-center gap-3">
-                <MapPin size={22} className="text-[var(--secondary)]" /> Geographical Details
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-light)] ml-1">City</label>
-                  <input 
-                    type="text" required
-                    className="input-field !pl-4 shadow-sm"
-                    placeholder="e.g. New Delhi"
+            {/* ─── Section 2: Location ─── */}
+            <SectionCard id="location">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10, background: '#f0fdf4',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981',
+                }}>
+                  <MapPin size={18} />
+                </div>
+                <div>
+                  <h2 className="font-poppins" style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>Location</h2>
+                  <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, margin: 0 }}>City, address & coordinates</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>City <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input
+                    type="text" required style={inputStyle}
+                    placeholder="e.g. Mumbai"
                     value={formData.city}
                     onChange={e => setFormData({...formData, city: e.target.value})}
+                    onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-light)] ml-1">Official Address</label>
-                  <input 
-                    type="text" required
-                    className="input-field !pl-4 shadow-sm"
-                    placeholder="123 Street, Area..."
+                <div>
+                  <label style={labelStyle}>Address <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input
+                    type="text" required style={inputStyle}
+                    placeholder="Full street address"
                     value={formData.address}
                     onChange={e => setFormData({...formData, address: e.target.value})}
+                    onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
                   />
                 </div>
               </div>
 
-              <div className="p-6 bg-subtle rounded-3xl border border-[var(--border-light)] mb-6">
-                <div className="flex items-center gap-3 text-sm font-bold text-[var(--text-muted)] mb-6">
-                  <MapIcon size={18} className="text-[var(--secondary)]" /> Precise Mapping Coordinates
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black opacity-60 uppercase tracking-widest ml-1">Latitude</label>
-                    <input 
-                      type="number" step="any" required
-                      className="input-field !pl-4 bg-white shadow-inner"
-                      placeholder="e.g. 28.6139"
-                      value={formData.latitude}
-                      onChange={e => setFormData({...formData, latitude: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black opacity-60 uppercase tracking-widest ml-1">Longitude</label>
-                    <input 
-                      type="number" step="any" required
-                      className="input-field !pl-4 bg-white shadow-inner"
-                      placeholder="e.g. 77.2090"
-                      value={formData.longitude}
-                      onChange={e => setFormData({...formData, longitude: e.target.value})}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-light)] px-2">
-                <Info size={12} className="text-[var(--secondary)]" /> Coordinates are critical for the interactive map discovery feature.
-              </div>
-            </div>
-          </div>
 
-          {/* Sidebar Area */}
-          <div className="space-y-8">
-            {/* Visual Experiences */}
-            <div className="card p-8 shadow-lg">
-              <h3 className="text-base font-bold mb-6 flex items-center gap-2 uppercase tracking-widest text-[var(--text-muted)]">
-                <ImageIcon size={18} className="text-[var(--primary)]" /> Visual Feed
-              </h3>
-              
-              <div className="border-2 border-dashed border-[var(--border)] rounded-[20px] p-8 text-center hover:border-[var(--primary)] hover:bg-[var(--primary-soft)] transition-all cursor-pointer relative group">
-                <input 
+            </SectionCard>
+
+            {/* ─── Section 3: Photos ─── */}
+            <SectionCard id="photos">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10, background: '#fffbeb',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b',
+                }}>
+                  <ImageIcon size={18} />
+                </div>
+                <div>
+                  <h2 className="font-poppins" style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>Photos</h2>
+                  <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Upload high-quality images</p>
+                </div>
+              </div>
+
+              {/* Upload area */}
+              <div style={{
+                position: 'relative', border: '2px dashed #e2e8f0', background: '#fafbfc',
+                borderRadius: 16, padding: '40px 24px', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}>
+                <input
                   type="file" multiple accept="image/*"
                   onChange={handleFileChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10 }}
                 />
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-4 text-[var(--text-muted)] group-hover:text-[var(--primary)] group-hover:scale-110 transition-all shadow-sm">
-                  <Upload size={24} />
-                </div>
-                <p className="text-sm font-bold text-[var(--text-secondary)]">Drop experience photos</p>
-                <p className="text-[10px] text-[var(--text-light)] mt-1 font-600 uppercase tracking-widest">Hi-res JPG/PNG supported</p>
+                <motion.div
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{
+                    width: 52, height: 52, background: '#fff', borderRadius: 14,
+                    boxShadow: '0 2px 8px -2px rgba(0,0,0,0.08)', border: '1px solid #f1f5f9',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+                  }}
+                >
+                  <ImageIcon size={22} style={{ color: '#94a3b8' }} />
+                </motion.div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', marginBottom: 2 }}>Drop photos here</p>
+                <p style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>or click to browse</p>
               </div>
 
-              {previews.length > 0 && (
-                <div className="grid grid-cols-2 gap-3 mt-8 animate-fade-in">
-                  {previews.map((url, i) => (
-                    <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-[var(--border-light)] group/img shadow-sm">
-                      <img src={url} className="w-full h-full object-cover transition-transform group-hover/img:scale-110" alt="" />
-                      <button 
-                        type="button"
-                        onClick={() => removeFile(i)}
-                        className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-md rounded-lg text-red-500 hover:bg-white transition-all shadow-md opacity-0 group-hover/img:opacity-100"
+              {/* Image previews */}
+              <AnimatePresence>
+                {previews.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}
+                  >
+                    {previews.map((url, i) => (
+                      <motion.div
+                        key={url}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.08 }}
+                        style={{
+                          position: 'relative', aspectRatio: '1', borderRadius: 14,
+                          overflow: 'hidden', border: '1px solid #f1f5f9',
+                        }}
+                        className="group"
                       >
-                        <X size={14} />
-                      </button>
+                        <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Preview" />
+                        <button
+                          type="button"
+                          onClick={() => removeFile(i)}
+                          style={{
+                            position: 'absolute', top: 6, right: 6, padding: 5,
+                            background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)',
+                            borderRadius: 8, color: '#fff', border: 'none', cursor: 'pointer',
+                            opacity: 0, transition: 'opacity 0.2s',
+                          }}
+                          className="group-hover:!opacity-100"
+                        >
+                          <X size={13} />
+                        </button>
+                      </motion.div>
+                    ))}
+                    {/* Add more */}
+                    <div style={{
+                      aspectRatio: '1', borderRadius: 14, border: '2px dashed #e2e8f0',
+                      background: '#fafbfc', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#cbd5e1', cursor: 'pointer', position: 'relative',
+                    }}>
+                      <input type="file" multiple accept="image/*" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                      <Plus size={22} />
                     </div>
-                  ))}
-                  <div className="aspect-square rounded-2xl border-2 border-dashed border-[var(--border)] flex items-center justify-center text-[var(--text-light)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors cursor-pointer relative">
-                     <input type="file" multiple accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-                     <Plus size={24} />
-                  </div>
-                </div>
-              )}
-            </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </SectionCard>
 
-            {/* Final Metadata */}
-            <div className="card p-8 bg-subtle">
-              <h3 className="text-base font-bold mb-6 flex items-center gap-2 uppercase tracking-widest text-[var(--text-muted)]">
-                <Tag size={18} className="text-orange-500" /> Discoverability
-              </h3>
-              
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-light)] ml-1">Community Tags</label>
-                  <div className="relative group">
-                    <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)] group-focus-within:text-[var(--primary)] transition-colors" size={18} />
-                    <input 
-                      type="text"
-                      className="input-field !pl-12 !py-4 shadow-sm text-sm"
-                      placeholder="e.g. scenic, quiet, pet-friendly"
-                      value={formData.tags}
-                      onChange={e => setFormData({...formData, tags: e.target.value})}
-                    />
-                  </div>
-                  <p className="text-[9px] font-bold text-[var(--text-light)] px-1">Separate keywords with commas</p>
+            {/* ─── Section 4: Details ─── */}
+            <SectionCard id="details">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10, background: '#f5f3ff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6',
+                }}>
+                  <Tag size={18} />
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-light)] ml-1">Suggested Visit Time</label>
-                  <div className="relative group">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)] group-focus-within:text-[var(--primary)] transition-colors" size={18} />
-                    <input 
-                      type="number"
-                      className="input-field !pl-12 !py-4 shadow-sm text-sm"
-                      placeholder="60"
-                      value={formData.suggestedDurationMinutes}
-                      onChange={e => setFormData({...formData, suggestedDurationMinutes: parseInt(e.target.value)})}
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-[var(--text-light)]">MINS</div>
-                  </div>
+                <div>
+                  <h2 className="font-poppins" style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>Discoverability</h2>
+                  <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Tags & visit duration</p>
                 </div>
               </div>
-            </div>
 
-            {/* Helper Card */}
-            <div className="p-8 bg-black rounded-[32px] text-white relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--primary)] blur-3xl rounded-full opacity-30 -mr-16 -mt-16" />
-               <h4 className="flex items-center gap-2 font-poppins font-bold text-lg mb-4 relative z-10">
-                 <Award size={22} className="text-yellow-400" /> Local Hero Points
-               </h4>
-               <p className="text-xs text-white/70 leading-relaxed mb-6 relative z-10">Sharing high-quality photos and accurate locations helps you earn badges and increases your rank in the global explorer network.</p>
-               <div className="w-full h-2 bg-white/10 rounded-full relative z-10">
-                  <div className="w-2/3 h-full bg-[var(--primary)] rounded-full shadow-[0_0_10px_rgba(37,99,235,0.8)]" />
-               </div>
-               <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mt-3 text-right">Progress to Elite Status</p>
+              <div>
+                <label style={labelStyle}>Tags (Keywords)</label>
+                <input
+                  type="text" style={inputStyle}
+                  placeholder="e.g. scenic, quiet, pet-friendly..."
+                  value={formData.tags}
+                  onChange={e => setFormData({...formData, tags: e.target.value})}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
+                />
+                <p style={{ fontSize: 11, color: '#cbd5e1', fontWeight: 500, marginTop: 6 }}>Separate keywords with commas</p>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Suggested Visit Duration</label>
+                <div style={{ position: 'relative' }}>
+                  <Clock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1', pointerEvents: 'none' }} />
+                  <input
+                    type="number" style={{ ...inputStyle, paddingLeft: 40 }}
+                    placeholder="60"
+                    value={formData.suggestedDurationMinutes}
+                    onChange={e => setFormData({...formData, suggestedDurationMinutes: parseInt(e.target.value)})}
+                    onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
+                  />
+                  <span style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: '#cbd5e1' }}>minutes</span>
+                </div>
+              </div>
+            </SectionCard>
+          </form>
+        </motion.div>
+      </div>
+
+      {/* ─── Sticky Bottom Bar ─── */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+        background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)',
+        borderTop: '1px solid #f1f5f9',
+      }}>
+        <div style={{
+          maxWidth: 720, margin: '0 auto', padding: '12px 24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8, background: '#f1f5f9',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <MapPin size={14} style={{ color: '#94a3b8' }} />
             </div>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {formData.name || 'Untitled place'}
+            </span>
           </div>
-        </form>
+          <button
+            form="add-place-form"
+            type="submit"
+            disabled={loading}
+            style={{
+              background: '#0f172a', color: '#fff', padding: '10px 28px',
+              borderRadius: 12, fontWeight: 700, fontSize: 13, border: 'none',
+              cursor: 'pointer', opacity: loading ? 0.4 : 1, flexShrink: 0,
+              transition: 'all 0.2s',
+            }}
+          >
+            {loading ? 'Saving...' : 'Publish Place'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -65,8 +65,8 @@ const RegisterPage = () => {
     <AuthTravelShell>
       <div className="auth-travel-card">
         <div className="mb-10">
-          <Link to="/" className="inline-block mb-8 text-blue-600 font-bold tracking-tight text-xl hover:opacity-80 transition-opacity">
-            TravelExplorer<span className="text-slate-400">.</span>
+          <Link to="/" className="inline-block mb-8 text-[var(--primary)] font-bold tracking-tight text-xl hover:opacity-80 transition-opacity">
+            Tourism
           </Link>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-3">
             Create Account

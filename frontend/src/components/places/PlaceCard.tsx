@@ -48,7 +48,7 @@ const PlaceCard = ({ place }: PlaceCardProps) => {
           {/* Image Section */}
           <div className="relative aspect-[3/4] overflow-hidden">
             <img
-              src={imageSource.includes('unsplash.com') ? `${imageSource.split('?')[0]}?w=800&q=80&auto=format&fit=crop` : imageSource}
+              src={imageSource}
               alt={place.name}
               loading="lazy"
               className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"

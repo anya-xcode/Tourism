@@ -199,20 +199,26 @@ const PlaceDetails = () => {
     </div>
   );
 
+  const pruneMarkdown = (text: string) => {
+    if (!text) return '';
+    // Removes hashes, bold/italic markers, and trailing/leading whitespace
+    return text.replace(/[#*`_~]/g, '').trim();
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="bg-gray-50 min-h-screen pb-24"
+      style={{ background: '#fafbfc', minHeight: '100vh', paddingBottom: 96 }}
     >
-      <div className="bg-white border-b border-gray-200">
-        <div className="container-custom pt-6 pb-6">
+      <div style={{ background: '#fff', borderBottom: '1px solid #f1f5f9' }}>
+        <div className="container-custom" style={{ maxWidth: 1200, paddingTop: 24, paddingBottom: 24 }}>
           {/* Breadcrumbs */}
-          <div className="flex items-center gap-2 mb-6 text-sm text-gray-500 font-medium">
-            <Link to="/uploads" className="hover:text-gray-900 transition-colors">Experiences</Link>
-            <ChevronRight size={16} className="text-gray-400" />
-            <span className="text-gray-900">{place.name}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>
+            <Link to="/uploads" style={{ color: '#64748b', textDecoration: 'none', transition: 'color 0.2s' }}>Experiences</Link>
+            <ChevronRight size={14} style={{ color: '#cbd5e1' }} />
+            <span style={{ color: '#0f172a' }}>{pruneMarkdown(place.name)}</span>
           </div>
 
           <motion.div
@@ -225,22 +231,23 @@ const PlaceDetails = () => {
             }}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-4 grid-rows-2 gap-3 h-[400px] md:h-[500px] rounded-2xl overflow-hidden"
+            className="grid grid-cols-4 grid-rows-2"
+            style={{ gap: 6, height: 420, borderRadius: 20, overflow: 'hidden' }}
           >
-            <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-2 row-span-2 relative group overflow-hidden">
+            <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-2 row-span-2 relative group overflow-hidden" style={{ borderRadius: '20px 0 0 20px' }}>
               <img src={images[0]} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Main View" />
             </motion.div>
             <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-1 row-span-1 relative group overflow-hidden">
               <img src={images[1] || images[0]} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="View 1" />
             </motion.div>
-            <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-1 row-span-1 relative group overflow-hidden">
+            <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-1 row-span-1 relative group overflow-hidden" style={{ borderRadius: '0 20px 0 0' }}>
               <img src={images[2] || images[0]} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="View 2" />
             </motion.div>
-            <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-2 row-span-1 relative group overflow-hidden">
+            <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-2 row-span-1 relative group overflow-hidden" style={{ borderRadius: '0 0 20px 0' }}>
               <img src={images[3] || images[0]} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="View 3" />
               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/30 transition-colors">
-                <button className="flex items-center gap-2 bg-white/90 text-gray-900 px-4 py-2 rounded-lg font-medium text-sm shadow-sm hover:bg-white transition-colors">
-                  <Camera size={16} /> Show all photos
+                <button style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.9)', color: '#0f172a', padding: '8px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', backdropFilter: 'blur(8px)' }}>
+                  <Camera size={15} /> Show all photos
                 </button>
               </div>
             </motion.div>
@@ -248,50 +255,53 @@ const PlaceDetails = () => {
         </div>
       </div>
 
-      <div className="container-custom mt-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div className="container-custom" style={{ maxWidth: 1200, marginTop: 36 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-12" style={{ gap: 32 }}>
 
           {/* Main Content Area */}
-          <div className="lg:col-span-8 pr-0 lg:pr-8">
-            <div className="mb-12">
-              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-6 mb-6">
-                <div>
-                  <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight leading-tight mb-4">{place.name}</h1>
-                  <div className="flex flex-wrap items-center gap-3 text-gray-600 text-lg">
-                    <div className="flex items-center gap-1 font-semibold text-gray-900 bg-gray-100 px-3 py-1 rounded-full">
-                      <Star size={16} className="fill-gray-900" />
+          <div className="lg:col-span-8">
+            <div style={{ marginBottom: 40 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, marginBottom: 20 }}>
+                <div style={{ flex: 1 }}>
+                  <h1 className="font-poppins" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginBottom: 16 }}>{pruneMarkdown(place.name)}</h1>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, fontSize: 15 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#0f172a', background: '#f1f5f9', padding: '6px 14px', borderRadius: 99 }}>
+                      <Star size={16} style={{ fill: '#0f172a' }} />
                       <span>{place.averageRating || '4.8'}</span>
                     </div>
-                    <span className="text-gray-400">•</span>
-                    <span className="text-gray-600 underline cursor-pointer hover:text-gray-900 transition-colors font-medium">{place.totalReviews || '0'} reviews</span>
-                    <span className="text-gray-400">•</span>
-                    <span className="text-gray-600 font-medium flex items-center gap-1.5"><MapPin size={18} /> {place.city}</span>
+                    <span style={{ color: '#cbd5e1' }}>•</span>
+                    <span style={{ color: '#64748b', fontWeight: 600, borderBottom: '1.5px solid #e2e8f0', cursor: 'pointer' }}>{place.totalReviews || '0'} reviews</span>
+                    <span style={{ color: '#cbd5e1' }}>•</span>
+                    <span style={{ color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, textTransform: 'capitalize' }}>
+                      <MapPin size={16} style={{ color: '#6366f1' }} /> {place.city}
+                    </span>
                   </div>
                 </div>
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setLiked(!liked)}
-                  className="flex items-center justify-center bg-white border border-gray-200 text-gray-600 rounded-full w-12 h-12 flex-shrink-0 shadow-sm hover:shadow-md transition-all active:scale-95"
+                  style={{ width: 48, height: 48, borderRadius: '50%', background: '#fff', border: '1.5px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s', boxShadow: '0 4px 12px -2px rgba(0,0,0,0.06)' }}
                 >
-                  <Heart size={20} fill={liked ? 'currentColor' : 'none'} className={liked ? 'text-red-500' : ''} />
-                </button>
+                  <Heart size={20} fill={liked ? '#ef4444' : 'none'} className={liked ? 'text-red-500' : 'text-gray-400'} />
+                </motion.button>
               </div>
             </div>
 
             <div className="h-px bg-gray-200 w-full mb-10" />
-
             {/* Navigation Tabs */}
-            <div className="flex gap-8 mb-8 overflow-x-auto scrollbar-hide border-b border-gray-200">
+            <div className="flex gap-10 mb-10 overflow-x-auto scrollbar-hide border-b border-gray-100">
               {['Overview', 'Community Feed', 'Reviews', 'Events'].map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`pb-4 text-sm font-semibold relative transition-colors whitespace-nowrap px-1 ${
-                    activeTab === tab ? 'text-gray-900' : 'text-gray-500 hover:text-gray-800'
+                  className={`pb-5 text-[15px] font-bold relative transition-all whitespace-nowrap px-1 ${
+                    activeTab === tab ? 'text-gray-900' : 'text-gray-400 hover:text-gray-900'
                   }`}
                 >
                   {tab}
                   {activeTab === tab && (
-                    <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 w-full h-[2px] bg-gray-900" />
+                    <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-900 rounded-full" />
                   )}
                 </button>
               ))}
@@ -302,48 +312,57 @@ const PlaceDetails = () => {
               {activeTab === 'Overview' && (
                 <motion.div
                   key="overview"
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
                   className="mb-12 text-gray-800"
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
-                    <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center">
-                      <Clock className="text-gray-800 mb-3" size={28} />
-                      <p className="text-sm font-bold text-gray-900 mb-2">Time Spent</p>
-                      <p className="text-gray-500 text-base">{place.suggestedDurationMinutes} mins</p>
+                    <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md min-h-[160px]">
+                      <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
+                        <Clock className="text-indigo-600" size={24} />
+                      </div>
+                      <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Time Spent</p>
+                      <p className="text-gray-900 font-bold text-lg">{place.suggestedDurationMinutes} mins</p>
                     </div>
-                    <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center">
-                      <Calendar className="text-gray-800 mb-3" size={28} />
-                      <p className="text-sm font-bold text-gray-900 mb-2">Operating Hours</p>
-                      <p className="text-gray-500 text-base whitespace-pre-wrap">{place.operatingHours || '9:00 AM - 6:00 PM'}</p>
+                    <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md min-h-[160px]">
+                      <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
+                        <Calendar className="text-indigo-600" size={24} />
+                      </div>
+                      <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Hours</p>
+                      <p className="text-gray-900 font-bold text-lg whitespace-pre-wrap">{place.operatingHours || '09:00 - 18:00'}</p>
                     </div>
-                    <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center">
-                      <Star className="text-gray-800 mb-3" size={28} />
-                      <p className="text-sm font-bold text-gray-900 mb-2">Category</p>
-                      <p className="text-gray-500 text-base">{place.category || 'General'}</p>
+                    <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md min-h-[160px]">
+                      <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
+                        <Star className="text-indigo-600" size={24} />
+                      </div>
+                      <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Entry</p>
+                      <p className="text-gray-900 font-bold text-lg">{place.category || 'Free Access'}</p>
                     </div>
                   </div>
 
                   <h3 className="text-2xl font-bold mb-6 text-gray-900">About this place</h3>
-                  <p className="text-gray-600 text-lg leading-loose mb-10">{place.description}</p>
+                  <p className="text-gray-600 text-lg leading-relaxed mb-10">{pruneMarkdown(place.description)}</p>
                   
                   {place.tags && place.tags.length > 0 && (
                     <div className="flex flex-wrap gap-3 mb-12">
                       {place.tags.map((tag: string) => (
-                        <span key={tag} className="bg-gray-50 py-2 px-5 rounded-lg text-sm font-semibold text-gray-700 border border-gray-200">
+                        <span key={tag} className="bg-gray-100 py-2.5 px-6 rounded-xl text-sm font-bold text-gray-700 border border-gray-200">
                           #{tag}
                         </span>
                       ))}
                     </div>
                   )}
                   
-                  <div className="h-px bg-gray-200 w-full mb-12" />
+                  <div className="h-px bg-gray-100 w-full mb-12" />
                   
                   <div>
-                    <h3 className="text-2xl font-bold mb-8 flex items-center gap-3 text-gray-900">
-                      <Info size={24} className="text-gray-800" /> What to know
+                    <h3 className="text-2xl font-bold mb-8 flex items-center gap-4 text-gray-900">
+                      <div className="p-2.5 bg-gray-900 rounded-xl text-white">
+                        <Info size={20} />
+                      </div>
+                      What to know
                     </h3>
                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {[
@@ -352,9 +371,11 @@ const PlaceDetails = () => {
                         'Community-Sourced Visuals',
                         'Real-time Access Guides'
                       ].map((tip, i) => (
-                        <li key={i} className="flex items-center gap-4 text-lg text-gray-700">
-                          <CheckIcon />
-                          {tip}
+                        <li key={i} className="flex items-start gap-4 text-lg text-gray-700 font-medium">
+                          <div className="p-1 bg-teal-50 text-teal-600 rounded-full mt-1">
+                            <CheckIcon size={14} />
+                          </div>
+                          <span>{tip}</span>
                         </li>
                       ))}
                     </ul>
@@ -567,8 +588,8 @@ const PlaceDetails = () => {
           </div>
 
           {/* ─── Sidebar Area ─── */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className="sticky top-24 space-y-6">
+          <div className="lg:col-span-4" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ position: 'sticky', top: 'calc(var(--header-height) + 24px)', display: 'flex', flexDirection: 'column', gap: 20 }}>
                
                {/* Context Action Card */}
                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
@@ -605,20 +626,21 @@ const PlaceDetails = () => {
                      ) : fares.length > 0 ? (
                         fares.map((f, i) => {
                            const prov = providerColors[f.provider] || { bg: 'bg-gray-800', text: 'text-white', label: f.provider };
+                           const isCheapest = i === 0;
                            return (
-                             <div key={i} className="flex justify-between items-center py-2 group cursor-pointer border-b border-gray-100 last:border-0 pb-3 last:pb-0">
-                                <div className="flex items-center gap-3">
-                                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${prov.bg} ${prov.text}`}>
-                                      {prov.label === 'Uber' ? 'U' : prov.label === 'Ola' ? 'O' : prov.label === 'Rapido' ? 'R' : '!'}
-                                   </div>
-                                   <div>
-                                      <p className="text-sm font-semibold text-gray-900">{f.provider}</p>
-                                      <p className="text-[13px] text-gray-500 mt-0.5">{f.estimatedMinutes} min • {f.distanceKm} km</p>
-                                   </div>
+                             <div key={i} className="flex items-center py-3 border-b border-gray-50 last:border-0">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${prov.bg} ${prov.text} shadow-sm mr-4`}>
+                                   {prov.label === 'Uber' ? 'U' : prov.label === 'Ola' ? 'O' : prov.label === 'Rapido' ? 'R' : '!'}
                                 </div>
-                                <span className={`text-base font-semibold ${i === 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                                   ₹{f.fare}
-                                </span>
+                                <div className="flex-1 min-w-0">
+                                   <p className="text-[14px] font-bold text-gray-900 truncate">{f.provider}</p>
+                                   <p className="text-[12px] text-gray-500 font-medium">{f.estimatedMinutes} min • {f.distanceKm} km</p>
+                                </div>
+                                <div className="text-right ml-4">
+                                   <p className={`text-[16px] font-extrabold ${isCheapest ? 'text-emerald-600' : 'text-gray-900'}`}>
+                                      ₹{f.fare}
+                                   </p>
+                                </div>
                              </div>
                            );
                         })
@@ -668,9 +690,9 @@ const PlaceDetails = () => {
 };
 
 // SVG Icon Helper
-const CheckIcon = () => (
-   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-900" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+const CheckIcon = ({ size = 24 }: { size?: number }) => (
+   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="text-gray-900" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
    </svg>
 );
 

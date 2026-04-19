@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import React, { Suspense, lazy } from 'react';
 import Navbar from './components/layout/Navbar';
+import Footer from './components/layout/Footer';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Dynamic imports for code splitting
@@ -44,9 +45,9 @@ function AppRoutes() {
   const authFullBleed = AUTH_FULLBLEED.includes(pathname);
 
   return (
-    <div className="app-container min-h-screen bg-[var(--background)] text-[var(--text)]">
+    <div className="app-container min-h-screen bg-[var(--background)] text-[var(--text)] flex flex-col">
       {!authFullBleed && <Navbar />}
-      <main style={{ paddingTop: authFullBleed ? 0 : 'calc(var(--header-height) + 12px)' }}>
+      <main className="flex-1" style={{ paddingTop: authFullBleed ? 0 : 'calc(var(--header-height) + 12px)' }}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -64,6 +65,7 @@ function AppRoutes() {
           </Routes>
         </Suspense>
       </main>
+      {!authFullBleed && <Footer />}
     </div>
   );
 }

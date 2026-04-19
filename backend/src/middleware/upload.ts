@@ -7,7 +7,7 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: any) => {
   if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
     cb(null, true);
   } else {
-    cb(new AppError('Only images and videos are allowed!', 400), false);
+    cb(new AppError('Invalid image file. Only JPG, PNG and other standard images are allowed!', 400), false);
   }
 };
 

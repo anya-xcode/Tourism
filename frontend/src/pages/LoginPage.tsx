@@ -41,11 +41,9 @@ const LoginPage = () => {
       const res = await api.post('/auth/google', { token: response.credential });
       login(res.data.token, res.data.user);
       navigate('/');
-    } catch (err: unknown) {
-      const message =
-        err && typeof err === 'object' && 'response' in err
-          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-          : undefined;
+    } catch (err: any) {
+      console.error('Google Auth Login Error:', err);
+      const message = err.response?.data?.message || err.message;
       setError(message || 'Google sign-in failed. Please try again.');
     } finally {
       setLoading(false);
@@ -56,8 +54,8 @@ const LoginPage = () => {
     <AuthTravelShell>
       <div className="auth-travel-card">
         <div className="mb-10">
-          <Link to="/" className="inline-block mb-8 text-blue-600 font-bold tracking-tight text-xl hover:opacity-80 transition-opacity">
-            TravelExplorer<span className="text-slate-400">.</span>
+          <Link to="/" className="inline-block mb-8 text-[var(--primary)] font-bold tracking-tight text-xl hover:opacity-80 transition-opacity">
+            Tourism
           </Link>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-3">
             Sign In
@@ -151,10 +149,10 @@ const LoginPage = () => {
 
         <div className="auth-divider">OR</div>
 
-        <div className="flex justify-center w-full">
+        <div className="flex justify-center w-full min-h-[50px]">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
-            onError={() => setError('Google sign-in was unsuccessful.')}
+            onError={() => setError('Google initialization failed. This may be due to an unauthorized origin (e.g., localhost) or an invalid Client ID. Please check your Google Cloud Console settings.')}
             useOneTap
             shape="rectangular"
             theme="outline"

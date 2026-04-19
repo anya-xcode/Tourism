@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { PlaceService } from '../services/PlaceService';
-import { Search, Map as MapIcon, Star, MapPin, ChevronRight, Layers, Navigation } from 'lucide-react';
+import { Search, Map as MapIcon, Star, MapPin, ChevronRight, Layers, Navigation, LocateFixed } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { IPlace } from '../types';
 
 const containerStyle = { width: '100%', height: '100%' };
-const center = { lat: 28.6139, lng: 77.2090 };
+const defaultCenter = { lat: 28.6139, lng: 77.2090 };
 
 const ExploreMap = () => {
   const { isLoaded } = useJsApiLoader({
@@ -20,6 +20,9 @@ const ExploreMap = () => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [currentLocation, setCurrentLocation] = useState('');
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
+  const [locatingUser, setLocatingUser] = useState(false);
 
   useEffect(() => {
     const fetchPlaces = async () => {
@@ -50,6 +53,26 @@ const ExploreMap = () => {
       lng: place.location.coordinates[0]
     });
     map?.setZoom(15);
+  }, [map]);
+
+  const handleUseMyLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocatingUser(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setMapCenter(userPos);
+        map?.panTo(userPos);
+        map?.setZoom(13);
+        setCurrentLocation(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+        setLocatingUser(false);
+      },
+      () => {
+        setLocatingUser(false);
+        setCurrentLocation('Location access denied');
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
   }, [map]);
 
   return (
@@ -83,7 +106,7 @@ const ExploreMap = () => {
           </div>
 
           {/* Search */}
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', marginBottom: 12 }}>
             <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1', pointerEvents: 'none' }} />
             <input
               type="text"
@@ -99,6 +122,39 @@ const ExploreMap = () => {
               onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.background = '#fff'; }}
               onBlur={e => { e.currentTarget.style.borderColor = '#f1f5f9'; e.currentTarget.style.background = '#f8fafc'; }}
             />
+          </div>
+
+          {/* Current Location Input */}
+          <div style={{ position: 'relative' }}>
+            <LocateFixed size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#14b8a6', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Your current location"
+              value={currentLocation}
+              onChange={(e) => setCurrentLocation(e.target.value)}
+              readOnly
+              style={{
+                width: '100%', background: '#f0fdfa', border: '1.5px solid #ccfbf1',
+                borderRadius: 10, padding: '10px 90px 10px 38px', fontSize: 12, fontWeight: 600,
+                outline: 'none', color: '#0f172a', transition: 'all 0.2s',
+                fontFamily: 'Inter, sans-serif', cursor: 'default',
+              }}
+            />
+            <button
+              onClick={handleUseMyLocation}
+              disabled={locatingUser}
+              style={{
+                position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                display: 'flex', alignItems: 'center', gap: 4,
+                padding: '5px 10px', background: '#14b8a6', color: '#fff',
+                border: 'none', borderRadius: 7, fontSize: 10, fontWeight: 700,
+                cursor: locatingUser ? 'wait' : 'pointer', transition: 'all 0.2s',
+                opacity: locatingUser ? 0.6 : 1,
+              }}
+            >
+              <Navigation size={11} />
+              {locatingUser ? 'Finding...' : 'Locate Me'}
+            </button>
           </div>
         </div>
 
@@ -149,7 +205,7 @@ const ExploreMap = () => {
                       flexShrink: 0, background: '#f1f5f9',
                     }}>
                       <img
-                        src={place.photos?.[0]?.includes('unsplash.com') ? `${place.photos[0].split('?')[0]}?w=120&q=80` : (place.photos?.[0] || 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=120')}
+                        src={place.photos?.[0] || 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=120'}
                         alt=""
                         loading="lazy"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -195,7 +251,7 @@ const ExploreMap = () => {
           <>
             <GoogleMap
               mapContainerStyle={containerStyle}
-              center={center}
+              center={mapCenter}
               zoom={12}
               onLoad={m => setMap(m)}
               options={{
@@ -296,15 +352,28 @@ const ExploreMap = () => {
             </div>
 
             {/* Bottom controls */}
-            <button style={{
-              position: 'absolute', bottom: 20, right: 16, zIndex: 10,
-              padding: '10px 16px', background: '#fff', borderRadius: 12,
-              boxShadow: '0 2px 8px -2px rgba(0,0,0,0.12)', border: '1px solid #f1f5f9',
-              display: 'flex', alignItems: 'center', gap: 6,
-              fontSize: 12, fontWeight: 700, color: '#475569', cursor: 'pointer',
-            }}>
-              <Layers size={14} /> Layers
-            </button>
+            <div style={{ position: 'absolute', bottom: 20, right: 16, zIndex: 10, display: 'flex', gap: 8 }}>
+              {/* Mobile: Locate Me button (visible only on small screens) */}
+              <button
+                onClick={handleUseMyLocation}
+                className="lg:hidden"
+                style={{
+                  padding: '10px 16px', background: '#14b8a6', borderRadius: 12, color: '#fff',
+                  boxShadow: '0 2px 8px -2px rgba(20,184,166,0.3)', border: 'none',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                }}>
+                <LocateFixed size={14} /> My Location
+              </button>
+              <button style={{
+                padding: '10px 16px', background: '#fff', borderRadius: 12,
+                boxShadow: '0 2px 8px -2px rgba(0,0,0,0.12)', border: '1px solid #f1f5f9',
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 12, fontWeight: 700, color: '#475569', cursor: 'pointer',
+              }}>
+                <Layers size={14} /> Layers
+              </button>
+            </div>
           </>
         ) : (
           <div style={{
