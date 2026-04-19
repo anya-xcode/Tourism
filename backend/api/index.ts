@@ -3,18 +3,17 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import Database from './config/database';
-import CloudinaryConfig from './config/cloudinary';
-import Logger from './config/Logger';
-import ConfigManager from './config/ConfigManager';
-import ServiceFactory from './patterns/ServiceFactory';
-import { errorHandler } from './middleware/error';
-import routes from './routes';
+import Database from '../src/config/database';
+import CloudinaryConfig from '../src/config/cloudinary';
+import Logger from '../src/config/Logger';
+import ConfigManager from '../src/config/ConfigManager';
+import ServiceFactory from '../src/patterns/ServiceFactory';
+import { errorHandler } from '../src/middleware/error';
+import routes from '../src/routes';
 
 const app = express();
 const config = ConfigManager.getInstance();
 const logger = Logger.getInstance();
-const PORT = process.env.PORT || config.getPort();
 
 // Connect to Database (Singleton)
 Database.getInstance().connect();
@@ -22,7 +21,7 @@ Database.getInstance().connect();
 // Configure Cloudinary (Singleton)
 CloudinaryConfig.getInstance().configure();
 
-// Initialize Observer pattern — wire default notification listeners
+// Initialize Observer pattern
 ServiceFactory.getInstance().initializeObservers();
 
 logger.info('All singletons initialized successfully', 'Bootstrap');
@@ -42,7 +41,7 @@ const corsOptions = {
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use(morgan('dev'));
+app.use(morgan('combined'));
 
 // Routes
 app.use('/api', routes);
@@ -52,12 +51,12 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Travel Explorer API is running' });
 });
 
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).json({ message: 'Travel Explorer API' });
+});
+
 // Error Handling Middleware
 app.use(errorHandler);
 
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5001;
-  app.listen(PORT, () => {
-    logger.info(`🚀 Server running on port ${PORT} in ${config.getNodeEnv()} mode`, 'Server');
-  });
-}
+export default app;
