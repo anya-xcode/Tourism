@@ -13,6 +13,7 @@ import { VisitService } from '../services/VisitService';
 import { RideService } from '../services/RideService';
 import { useAuth } from '../context/AuthContext';
 import ScheduleVisit from '../components/places/ScheduleVisit';
+import { getOptimizedUrl } from '../utils/cloudinaryUtils';
 import type { IPlace, IReview, IThread, IVisitEvent, IFareEstimate } from '../types';
 
 const PlaceDetails = () => {
@@ -173,6 +174,11 @@ const PlaceDetails = () => {
   
   const getImageUrl = (url: string) => {
     if (!url) return '';
+    // If it's a Cloudinary URL, optimize it
+    if (url.includes('cloudinary.com')) {
+      return getOptimizedUrl(url);
+    }
+    // Handle local dev uploads if any
     if (url.startsWith('http') || url.startsWith('data:')) return url;
     const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5001';
     return `${baseUrl}/${url}`;

@@ -41,6 +41,43 @@ const SectionCard = ({ children, style, ...props }: React.HTMLAttributes<HTMLDiv
   </div>
 );
 
+const ImagePreviewItem = ({ url }: { url: string }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      {loading && !error && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: '#f8fafc',
+        }}>
+          <div className="animate-pulse" style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid #e2e8f0', borderTopColor: '#94a3b8' }} />
+        </div>
+      )}
+      {error && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          background: '#fef2f2', gap: 4, padding: 8, textAlign: 'center'
+        }}>
+          <X size={14} style={{ color: '#ef4444' }} />
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444' }}>FAIL</span>
+        </div>
+      )}
+      <img
+        src={url}
+        style={{
+          width: '100%', height: '100%', objectFit: 'cover',
+          display: 'block', opacity: loading ? 0 : 1, transition: 'opacity 0.3s'
+        }}
+        onLoad={() => setLoading(false)}
+        onError={() => { setLoading(false); setError(true); }}
+        alt="Preview"
+      />
+    </div>
+  );
+};
+
 const AddPlace = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -85,31 +122,36 @@ const AddPlace = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
-      const invalidFiles = selectedFiles.filter(file => !file.type.startsWith('image/'));
-      if (invalidFiles.length > 0) {
-        setError('Only image files are allowed.');
-        return;
+      const heicFiles = selectedFiles.filter(file => file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif'));
+      
+      if (heicFiles.length > 0) {
+        // We don't block it because the backend now handles conversion, but we warn them.
+        setError('HEIC format detected. Local preview not available, but it will be automatically converted to JPG after you publish.');
+      } else {
+        setError('');
       }
 
-      const largeFiles = selectedFiles.filter(file => file.size > 5 * 1024 * 1024); // 5MB limit
-      if (largeFiles.length > 0) {
-        setError('Images must be smaller than 5MB.');
-        return;
-      }
-
-      setError('');
-      setFiles([...files, ...selectedFiles]);
+      setFiles(prev => [...prev, ...selectedFiles]);
       const newPreviews = selectedFiles.map(file => URL.createObjectURL(file));
-      setPreviews([...previews, ...newPreviews]);
+      setPreviews(prev => [...prev, ...newPreviews]);
     }
   };
+
+  // Memory management for previews on unmount
+  useEffect(() => {
+    return () => {
+      previews.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []); // Only on unmount. removeFile handles individual removals.
 
   const removeFile = (index: number) => {
     const newFiles = [...files];
     newFiles.splice(index, 1);
     setFiles(newFiles);
     const newPreviews = [...previews];
-    URL.revokeObjectURL(newPreviews[index]);
+    if (newPreviews[index]) {
+      URL.revokeObjectURL(newPreviews[index]);
+    }
     newPreviews.splice(index, 1);
     setPreviews(newPreviews);
   };
@@ -420,10 +462,11 @@ const AddPlace = () => {
                         style={{
                           position: 'relative', aspectRatio: '1', borderRadius: 14,
                           overflow: 'hidden', border: '1px solid #f1f5f9',
+                          background: '#f8fafc', // Grey placeholder background
                         }}
                         className="group"
                       >
-                        <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Preview" />
+                        <ImagePreviewItem url={url} />
                         <button
                           type="button"
                           onClick={() => removeFile(i)}
@@ -432,6 +475,7 @@ const AddPlace = () => {
                             background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)',
                             borderRadius: 8, color: '#fff', border: 'none', cursor: 'pointer',
                             opacity: 0, transition: 'opacity 0.2s',
+                            zIndex: 20
                           }}
                           className="group-hover:!opacity-100"
                         >

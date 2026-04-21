@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Star, MapPin, Clock, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getOptimizedUrl } from '../../utils/cloudinaryUtils';
 
 interface PlaceCardProps {
   place: {
@@ -21,7 +22,8 @@ interface PlaceCardProps {
 const PlaceCard = ({ place }: PlaceCardProps) => {
   const [liked, setLiked] = useState(false);
   const defaultImage = "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=600";
-  const imageSource = place.photos?.[0] || defaultImage;
+  const rawImage = place.photos?.[0] || defaultImage;
+  const imageSource = getOptimizedUrl(rawImage);
 
   return (
     <motion.div

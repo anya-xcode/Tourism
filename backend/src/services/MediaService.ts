@@ -24,6 +24,7 @@ export class MediaService {
     const uploadRes: any = await this.cloudinary.uploader.upload(dataURI, {
       resource_type: resourceType,
       folder: `tourism/${placeId}/${resourceType}s`,
+      format: resourceType === 'image' ? 'jpg' : undefined,
     });
 
     const media = await Media.create({
