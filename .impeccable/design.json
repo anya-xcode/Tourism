@@ -1,0 +1,570 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-24T05:23:20.822Z",
+  "title": "Design System: Travel Explorer",
+  "extensions": {
+    "colorMeta": {
+      "madder": {
+        "role": "primary",
+        "displayName": "Madder Red",
+        "canonical": "#a3262a",
+        "oklch": "oklch(47.3% 0.161 24.4)",
+        "tonalRamp": [
+          "#150706",
+          "#470c0e",
+          "#7f0514",
+          "#aa2d30",
+          "#d15350",
+          "#ef7f79",
+          "#f8b6b0",
+          "#ffe9e7"
+        ]
+      },
+      "madder-deep": {
+        "role": "primary",
+        "displayName": "Madder Deep",
+        "canonical": "#861c20",
+        "oklch": "oklch(40.9% 0.141 24.4)",
+        "tonalRamp": [
+          "#140707",
+          "#431111",
+          "#79181c",
+          "#a23837",
+          "#c95b57",
+          "#e7857f",
+          "#f2b9b4",
+          "#fde9e7"
+        ]
+      },
+      "madder-wash": {
+        "role": "primary",
+        "displayName": "Madder Wash",
+        "canonical": "#f5e2df",
+        "oklch": "oklch(92.7% 0.021 28.3)",
+        "tonalRamp": [
+          "#0d0b0a",
+          "#2b2322",
+          "#4c3e3c",
+          "#6d5d5a",
+          "#8f7e7b",
+          "#b0a19f",
+          "#d0c7c5",
+          "#f0eeed"
+        ]
+      },
+      "dye": {
+        "role": "secondary",
+        "displayName": "Indigo Dye",
+        "canonical": "#1b2550",
+        "oklch": "oklch(28.2% 0.080 270.7)",
+        "tonalRamp": [
+          "#090b11",
+          "#1d243a",
+          "#333f69",
+          "#505e8f",
+          "#7080b3",
+          "#95a3d1",
+          "#c0c8e3",
+          "#ebeef7"
+        ]
+      },
+      "dye-deep": {
+        "role": "secondary",
+        "displayName": "Deep Indigo",
+        "canonical": "#121936",
+        "oklch": "oklch(22.5% 0.057 271.0)",
+        "tonalRamp": [
+          "#0a0b0f",
+          "#1f2434",
+          "#37405e",
+          "#556082",
+          "#7581a5",
+          "#99a4c5",
+          "#c2c9dc",
+          "#eceef4"
+        ]
+      },
+      "dye-raised": {
+        "role": "secondary",
+        "displayName": "Raised Indigo",
+        "canonical": "#27336b",
+        "oklch": "oklch(34.3% 0.098 271.3)",
+        "tonalRamp": [
+          "#090b12",
+          "#1c233f",
+          "#313d72",
+          "#4d5d99",
+          "#6d7fbd",
+          "#91a2db",
+          "#bec8e9",
+          "#ebeef9"
+        ]
+      },
+      "turmeric": {
+        "role": "tertiary",
+        "displayName": "Turmeric",
+        "canonical": "#d9a11e",
+        "oklch": "oklch(74.3% 0.146 82.1)",
+        "tonalRamp": [
+          "#100a02",
+          "#322200",
+          "#563d00",
+          "#7d5a04",
+          "#a77a04",
+          "#cc9c3a",
+          "#e0c595",
+          "#f6edde"
+        ]
+      },
+      "turmeric-wash": {
+        "role": "tertiary",
+        "displayName": "Turmeric Wash",
+        "canonical": "#f8eed3",
+        "oklch": "oklch(95.0% 0.037 90.1)",
+        "tonalRamp": [
+          "#0c0b08",
+          "#29251a",
+          "#49412d",
+          "#696149",
+          "#8b8269",
+          "#ada58f",
+          "#cdc9bc",
+          "#f0eeea"
+        ]
+      },
+      "cotton": {
+        "role": "neutral",
+        "displayName": "Bleached Cotton",
+        "canonical": "#eff1f2",
+        "oklch": "oklch(95.7% 0.003 228.8)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242526",
+          "#414243",
+          "#606162",
+          "#818383",
+          "#a4a5a6",
+          "#c8c9ca",
+          "#eeeeef"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Swatch Paper",
+        "canonical": "#fafbfc",
+        "oklch": "oklch(98.8% 0.002 247.8)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#414243",
+          "#606162",
+          "#818283",
+          "#a4a5a6",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "resist": {
+        "role": "neutral",
+        "displayName": "Resist White",
+        "canonical": "#f2f3f6",
+        "oklch": "oklch(96.4% 0.004 271.4)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252526",
+          "#414244",
+          "#606164",
+          "#818285",
+          "#a4a5a7",
+          "#c8c9ca",
+          "#eeeeef"
+        ]
+      },
+      "resist-dim": {
+        "role": "neutral",
+        "displayName": "Resist Dim",
+        "canonical": "#c4c8dc",
+        "oklch": "oklch(83.6% 0.028 276.8)",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#23242d",
+          "#3e4150",
+          "#5d6072",
+          "#7e8194",
+          "#a1a4b5",
+          "#c7c9d2",
+          "#eeeef1"
+        ]
+      },
+      "iron": {
+        "role": "neutral",
+        "displayName": "Iron Black",
+        "canonical": "#1d1a17",
+        "oklch": "oklch(22.0% 0.007 67.4)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262523",
+          "#45413e",
+          "#64605d",
+          "#85827e",
+          "#a8a4a1",
+          "#cbc9c7",
+          "#efeeee"
+        ]
+      },
+      "iron-2": {
+        "role": "neutral",
+        "displayName": "Iron 2",
+        "canonical": "#4b4640",
+        "oklch": "oklch(39.7% 0.012 72.5)",
+        "tonalRamp": [
+          "#0c0b0a",
+          "#272522",
+          "#46413c",
+          "#66605a",
+          "#87817b",
+          "#a9a49e",
+          "#cbc9c5",
+          "#efeeed"
+        ]
+      },
+      "iron-3": {
+        "role": "neutral",
+        "displayName": "Iron 3",
+        "canonical": "#6b655d",
+        "oklch": "oklch(51.0% 0.015 75.3)",
+        "tonalRamp": [
+          "#0c0b0a",
+          "#272521",
+          "#46413a",
+          "#666058",
+          "#888179",
+          "#aaa49d",
+          "#ccc8c4",
+          "#efeeed"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "#d4d7d9",
+        "oklch": "oklch(87.7% 0.004 236.5)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242526",
+          "#404244",
+          "#5f6263",
+          "#808384",
+          "#a3a5a7",
+          "#c8c9ca",
+          "#eeeeef"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Rule Strong",
+        "canonical": "#868b91",
+        "oklch": "oklch(63.5% 0.011 252.9)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#232528",
+          "#3e4247",
+          "#5d6267",
+          "#7e8389",
+          "#a1a5ab",
+          "#c7c9cc",
+          "#eeeeef"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The home hook and page heads on dye; steps 2.6rem → 3.4rem (640px) → 4.25rem (1024px)."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section heads on cotton; 2.2rem → 2.8rem."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Swatch names, the wordmark, event titles, map rows."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "The paragraph under a display or headline, 46–56ch."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text; reviews at 1.05rem capped at 60ch."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Every button label."
+      },
+      "fact": {
+        "displayName": "Fact",
+        "purpose": "Values in the full fact block, tabular; the compact block uses 700 at 0.875rem."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase small caps that name a datum: fact names, filter groups, category tags, months."
+      },
+      "stamp": {
+        "displayName": "Stamp",
+        "purpose": "Uppercase text inside a rubber stamp."
+      }
+    },
+    "shadows": [
+      {
+        "name": "field-focus-halo",
+        "value": "0 0 0 3px var(--color-madder-wash)",
+        "purpose": "A field's focus state only, paired with a madder border. The system has no elevation shadows."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-press",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Every state change and every landing: presses settle, nothing floats."
+      },
+      {
+        "name": "press-active",
+        "value": "120ms cubic-bezier(0.16, 1, 0.3, 1); translateY(1px) scale(0.985)",
+        "purpose": "Button press."
+      },
+      {
+        "name": "ink-color",
+        "value": "160ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Button background, border and color changes (fields use 140ms)."
+      },
+      {
+        "name": "ink-press",
+        "value": "260ms cubic-bezier(0.16, 1, 0.3, 1); scale 0.92 → 1.03 → 1",
+        "purpose": "A filter chip inking in when chosen."
+      },
+      {
+        "name": "stamp-land",
+        "value": "320ms cubic-bezier(0.16, 1, 0.3, 1); scale 1.5 → 0.96 → 1, opacity 0 → 1, rotation kept",
+        "purpose": "A stamp landing: Saved, You're going, Cheapest."
+      },
+      {
+        "name": "swatch-enter",
+        "value": "320ms cubic-bezier(0.16, 1, 0.3, 1); scale 1.03 + blur 3px → rest; 50ms stagger up to 400ms",
+        "purpose": "Home swatches pressing onto the field."
+      },
+      {
+        "name": "nav-underline",
+        "value": "200ms cubic-bezier(0.16, 1, 0.3, 1); scaleX 0 → 1",
+        "purpose": "The turmeric underline on the active masthead link."
+      },
+      {
+        "name": "photo-hover",
+        "value": "500ms cubic-bezier(0.16, 1, 0.3, 1); scale 1.03 inside the clipped frame",
+        "purpose": "Swatch photo on card hover; the card itself never lifts."
+      },
+      {
+        "name": "dialog-enter",
+        "value": "280ms cubic-bezier(0.16, 1, 0.3, 1); translateY 24px + scale 0.98 → rest",
+        "purpose": "Dialogs and the mobile bottom sheet."
+      },
+      {
+        "name": "skeleton-breathe",
+        "value": "1.6s ease-in-out infinite; opacity 1 ↔ 0.55",
+        "purpose": "Loading placeholders at the swatch proportions."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation and transition durations 0.01ms",
+        "purpose": "Under prefers-reduced-motion: reduce, everything collapses."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "container-max",
+        "value": "1240px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Ink Button",
+      "kind": "button",
+      "refersTo": "button-ink",
+      "description": "The madder action ink: the one main act in a region (Search places, Join, Share a place, Publish place).",
+      "html": "<button type=\"button\" class=\"ds-btn-ink\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>Share a place</button>",
+      "css": ".ds-btn-ink { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 44px; padding: 0.55rem 1.15rem; border-radius: 3px; border: 1.5px solid transparent; font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); font-weight: 700; font-size: 0.95rem; line-height: 1.2; cursor: pointer; transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms cubic-bezier(0.16, 1, 0.3, 1), transform 120ms cubic-bezier(0.16, 1, 0.3, 1); background: var(--color-madder, #a3262a); border-color: var(--color-madder, #a3262a); color: var(--color-resist, #f2f3f6); } .ds-btn-ink:hover { background: var(--color-madder-deep, #861c20); border-color: var(--color-madder-deep, #861c20); } .ds-btn-ink:focus-visible { outline: 2px solid var(--color-madder, #a3262a); outline-offset: 2px; } .ds-btn-ink:active { transform: translateY(1px) scale(0.985); } .ds-btn-ink:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Line Button",
+      "kind": "button",
+      "refersTo": "button-line",
+      "description": "An iron outline for second acts (Directions, Clear filters, Browse all); hover inverts to an iron fill.",
+      "html": "<button type=\"button\" class=\"ds-btn-line\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polygon points=\"3 11 22 2 13 21 11 13 3 11\"/></svg>Directions</button>",
+      "css": ".ds-btn-line { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 44px; padding: 0.55rem 1.15rem; border-radius: 3px; border: 1.5px solid transparent; font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); font-weight: 700; font-size: 0.95rem; line-height: 1.2; cursor: pointer; transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms cubic-bezier(0.16, 1, 0.3, 1), transform 120ms cubic-bezier(0.16, 1, 0.3, 1); background: transparent; border-color: var(--color-iron, #1d1a17); color: var(--color-iron, #1d1a17); } .ds-btn-line:hover { background: var(--color-iron, #1d1a17); color: var(--color-paper, #fafbfc); } .ds-btn-line:focus-visible { outline: 2px solid var(--color-madder, #a3262a); outline-offset: 2px; } .ds-btn-line:active { transform: translateY(1px) scale(0.985); }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Paper field with a 1.5px stroke; focus prints a madder border and a madder-wash halo.",
+      "html": "<div class=\"ds-field-wrap\"><label class=\"ds-field-label\" for=\"ds-field-name\">Name of the place</label><input id=\"ds-field-name\" class=\"ds-field\" type=\"text\" placeholder=\"e.g. Hawa Mahal\"></div>",
+      "css": ".ds-field-wrap { max-width: 360px; font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); } .ds-field-label { display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.95rem; color: var(--color-iron, #1d1a17); } .ds-field { display: block; width: 100%; box-sizing: border-box; min-height: 48px; padding: 0.65rem 0.9rem; background: var(--color-paper, #fafbfc); color: var(--color-iron, #1d1a17); border: 1.5px solid var(--color-rule-strong, #868b91); border-radius: 3px; font: inherit; font-size: 1rem; caret-color: var(--color-madder, #a3262a); transition: border-color 140ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 140ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-field::placeholder { color: var(--color-iron-3, #6b655d); opacity: 1; } .ds-field:hover { border-color: var(--color-iron-3, #6b655d); } .ds-field:focus, .ds-field:focus-visible { outline: none; border-color: var(--color-madder, #a3262a); box-shadow: 0 0 0 3px var(--color-madder-wash, #f5e2df); } .ds-field[aria-invalid=\"true\"] { border-color: var(--color-madder, #a3262a); }"
+    },
+    {
+      "name": "Ink Chip",
+      "kind": "chip",
+      "refersTo": "ink-chip",
+      "description": "Every filter visible as an uninked outline; choosing one inks it madder in a single press. Shown on dye and on cotton.",
+      "html": "<div class=\"ds-chips-demo\"><div class=\"ds-chip-row ds-on-dye\" role=\"group\" aria-label=\"Category\"><button type=\"button\" class=\"ds-chip ds-chip--dye\" aria-pressed=\"true\">All places</button><button type=\"button\" class=\"ds-chip ds-chip--dye\" aria-pressed=\"false\">Heritage</button><button type=\"button\" class=\"ds-chip ds-chip--dye\" aria-pressed=\"false\">Food</button></div><div class=\"ds-chip-row\" role=\"group\" aria-label=\"City\"><button type=\"button\" class=\"ds-chip\" aria-pressed=\"false\">Agra</button><button type=\"button\" class=\"ds-chip\" aria-pressed=\"true\">Jaipur</button><button type=\"button\" class=\"ds-chip\" aria-pressed=\"false\">Kochi</button></div></div>",
+      "css": ".ds-chips-demo { display: grid; font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); } .ds-chip-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; background: var(--color-cotton, #eff1f2); } .ds-chip-row.ds-on-dye { background: var(--color-dye, #1b2550); } .ds-chip { display: inline-flex; align-items: center; height: 40px; padding: 0 14px; border-radius: 3px; border: 1.5px solid var(--color-rule-strong, #868b91); background: transparent; color: var(--color-iron-2, #4b4640); font-family: inherit; font-size: 0.95rem; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background-color 150ms, border-color 150ms, color 150ms; } .ds-chip:hover { border-color: var(--color-iron, #1d1a17); color: var(--color-iron, #1d1a17); } .ds-chip--dye { border-color: rgb(242 243 246 / 0.45); color: rgb(242 243 246 / 0.9); } .ds-chip--dye:hover { border-color: var(--color-resist, #f2f3f6); color: var(--color-resist, #f2f3f6); } .ds-chip[aria-pressed=\"true\"] { background: var(--color-madder, #a3262a); border-color: var(--color-madder, #a3262a); color: var(--color-resist, #f2f3f6); animation: ds-ink-press 260ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-chip:focus-visible { outline: 2px solid var(--color-madder, #a3262a); outline-offset: 2px; } .ds-on-dye .ds-chip:focus-visible { outline-color: var(--color-turmeric, #d9a11e); } @keyframes ds-ink-press { 0% { transform: scale(0.92); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } } @media (prefers-reduced-motion: reduce) { .ds-chip[aria-pressed=\"true\"] { animation: none; } }"
+    },
+    {
+      "name": "Masthead",
+      "kind": "nav",
+      "refersTo": "masthead",
+      "description": "Sticky indigo masthead: carved block mark, Rozha wordmark, turmeric-underlined active link and a Join ink button, running into the lattice end-band on a dyed-top page.",
+      "html": "<header class=\"ds-masthead\"><div class=\"ds-mh-bar\"><a class=\"ds-mh-brand\" href=\"#\"><svg class=\"ds-mark\" width=\"30\" height=\"30\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect class=\"ds-mark-ground\" width=\"24\" height=\"24\" rx=\"3\"/><path class=\"ds-mark-line\" d=\"M12 3.6 20.4 12 12 20.4 3.6 12Z\" fill=\"none\" stroke-width=\"1.8\"/><circle class=\"ds-mark-dot\" cx=\"12.7\" cy=\"12.7\" r=\"2.7\"/><g class=\"ds-mark-corner\"><circle cx=\"4.4\" cy=\"4.4\" r=\"1.2\"/><circle cx=\"19.6\" cy=\"4.4\" r=\"1.2\"/><circle cx=\"4.4\" cy=\"19.6\" r=\"1.2\"/><circle cx=\"19.6\" cy=\"19.6\" r=\"1.2\"/></g></svg><span>Travel Explorer</span></a><nav class=\"ds-mh-nav\" aria-label=\"Main\"><a href=\"#\" class=\"ds-mh-link\" aria-current=\"page\">Discover</a><a href=\"#\" class=\"ds-mh-link\">All places</a><a href=\"#\" class=\"ds-mh-link\">Map</a></nav><div class=\"ds-mh-actions\"><a href=\"#\" class=\"ds-mh-signin\">Sign in</a><a href=\"#\" class=\"ds-mh-join\">Join</a></div></div><svg class=\"ds-lattice\" width=\"100%\" height=\"26\" aria-hidden=\"true\"><defs><pattern id=\"ds-mh-lattice\" width=\"26\" height=\"26\" patternUnits=\"userSpaceOnUse\"><path class=\"ds-l-stroke\" d=\"M13 4 22 13 13 22 4 13Z\" fill=\"none\" stroke-width=\"1.3\"/><circle class=\"ds-l-madder\" cx=\"13.6\" cy=\"13.6\" r=\"2.3\"/><circle class=\"ds-l-turmeric\" cx=\"0\" cy=\"13\" r=\"1.4\"/><circle class=\"ds-l-turmeric\" cx=\"26\" cy=\"13\" r=\"1.4\"/></pattern></defs><rect class=\"ds-l-ground\" width=\"100%\" height=\"26\"/><rect class=\"ds-l-rule\" y=\"0\" width=\"100%\" height=\"1.2\"/><rect class=\"ds-l-rule\" y=\"24.8\" width=\"100%\" height=\"1.2\"/><rect width=\"100%\" height=\"26\" fill=\"url(#ds-mh-lattice)\"/></svg></header>",
+      "css": ".ds-masthead { font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); background: var(--color-dye, #1b2550); color: var(--color-resist, #f2f3f6); } .ds-mh-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; min-height: 64px; padding: 0 24px; } .ds-mh-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--color-resist, #f2f3f6); text-decoration: none; font-family: var(--font-display, \"Rozha One\", Georgia, serif); font-size: 1.45rem; line-height: 1; letter-spacing: -0.01em; border-radius: 3px; } .ds-mark-ground { fill: var(--color-dye-deep, #121936); } .ds-mark-line { stroke: var(--color-resist, #f2f3f6); } .ds-mark-dot { fill: var(--color-madder, #a3262a); } .ds-mark-corner { fill: var(--color-resist, #f2f3f6); } .ds-mh-nav { display: flex; gap: 4px; } .ds-mh-link { position: relative; padding: 8px 12px; border-radius: 3px; color: var(--color-resist-dim, #c4c8dc); font-size: 0.98rem; font-weight: 600; text-decoration: none; transition: color 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-mh-link:hover, .ds-mh-link[aria-current=\"page\"] { color: var(--color-resist, #f2f3f6); } .ds-mh-link::after { content: \"\"; position: absolute; left: 12px; right: 12px; bottom: -2px; height: 3px; border-radius: 9999px; background: var(--color-turmeric, #d9a11e); transform: scaleX(0); transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-mh-link[aria-current=\"page\"]::after { transform: scaleX(1); } .ds-mh-actions { display: flex; align-items: center; gap: 8px; } .ds-mh-signin { padding: 8px 12px; color: var(--color-resist, #f2f3f6); font-weight: 600; font-size: 0.98rem; text-decoration: none; border-radius: 3px; } .ds-mh-signin:hover { text-decoration: underline; text-underline-offset: 0.2em; } .ds-mh-join { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 16px; border-radius: 3px; border: 1.5px solid var(--color-madder, #a3262a); background: var(--color-madder, #a3262a); color: var(--color-resist, #f2f3f6); font-weight: 700; font-size: 0.92rem; text-decoration: none; transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-mh-join:hover { background: var(--color-madder-deep, #861c20); border-color: var(--color-madder-deep, #861c20); } .ds-masthead a:focus-visible { outline: 2px solid var(--color-turmeric, #d9a11e); outline-offset: 2px; } .ds-lattice { display: block; width: 100%; } .ds-l-ground { fill: var(--color-dye, #1b2550); } .ds-l-stroke { stroke: var(--color-resist, #f2f3f6); stroke-opacity: 0.7; } .ds-l-madder { fill: var(--color-madder, #a3262a); } .ds-l-turmeric { fill: var(--color-turmeric, #d9a11e); } .ds-l-rule { fill: var(--color-resist, #f2f3f6); fill-opacity: 0.55; }"
+    },
+    {
+      "name": "Place Swatch",
+      "kind": "card",
+      "refersTo": "place-card",
+      "description": "A printed swatch: photo (here the no-photo Place Art), category tag, Saved stamp, Rozha name, city, save toggle and the compact fact block. Hover darkens the rule; it never lifts.",
+      "html": "<article class=\"ds-swatch\"><div class=\"ds-sw-photo\"><svg class=\"ds-latfield\" aria-hidden=\"true\"><defs><pattern id=\"ds-sw-field\" width=\"44\" height=\"44\" patternUnits=\"userSpaceOnUse\"><path class=\"ds-lf-line\" d=\"M22 6 38 22 22 38 6 22Z\" fill=\"none\" stroke-width=\"1.2\"/><path class=\"ds-lf-fill\" d=\"M22 15 29 22 22 29 15 22Z\" fill-opacity=\"0.5\"/><circle class=\"ds-lf-fill\" cx=\"0\" cy=\"0\" r=\"2\"/><circle class=\"ds-lf-fill\" cx=\"44\" cy=\"0\" r=\"2\"/><circle class=\"ds-lf-fill\" cx=\"0\" cy=\"44\" r=\"2\"/><circle class=\"ds-lf-fill\" cx=\"44\" cy=\"44\" r=\"2\"/></pattern></defs><rect width=\"100%\" height=\"100%\" fill=\"url(#ds-sw-field)\" opacity=\"0.2\"/></svg><span class=\"ds-sw-initial\" aria-hidden=\"true\">T</span><span class=\"ds-sw-tag\">Heritage</span><span class=\"ds-stamp ds-sw-stamp\" style=\"--ds-rot: -8deg\">Saved</span></div><div class=\"ds-sw-body\"><div class=\"ds-sw-head\"><div><h3 class=\"ds-sw-name\"><a href=\"#\">Taj Mahal</a></h3><p class=\"ds-sw-city\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z\"/><circle cx=\"12\" cy=\"10\" r=\"3\"/></svg>Agra</p></div><button type=\"button\" class=\"ds-sw-save\" aria-pressed=\"true\" aria-label=\"Remove Taj Mahal from saved places\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z\"/></svg></button></div><dl class=\"ds-fb-compact\"><div class=\"ds-fbc-cell\"><dt>Cost</dt><dd>₹</dd></div><div class=\"ds-fbc-cell\"><dt>Stay</dt><dd>3 h</dd></div><div class=\"ds-fbc-cell\"><dt>Rating</dt><dd>4.5 <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polygon points=\"12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2\"/></svg></dd></div><div class=\"ds-fbc-hours\"><dt>Hours</dt><dd>Sunrise – Sunset · closed Fridays</dd></div></dl></div></article>",
+      "css": ".ds-swatch { position: relative; display: flex; flex-direction: column; max-width: 360px; background: var(--color-paper, #fafbfc); border: 1px solid var(--color-rule, #d4d7d9); border-radius: 3px; font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); color: var(--color-iron, #1d1a17); transition: border-color 200ms; } .ds-swatch:hover { border-color: var(--color-iron, #1d1a17); } .ds-swatch:has(a:focus-visible) { outline: 2px solid var(--color-madder, #a3262a); outline-offset: 2px; } .ds-sw-photo { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 2px 2px 0 0; background: var(--color-dye, #1b2550); display: flex; align-items: center; justify-content: center; } .ds-sw-initial { position: relative; font-family: var(--font-display, \"Rozha One\", Georgia, serif); font-size: 3.75rem; line-height: 1; color: var(--color-resist, #f2f3f6); } .ds-sw-tag { position: absolute; left: 12px; top: 12px; padding: 2px 8px; border-radius: 2px; background: var(--color-dye, #1b2550); color: var(--color-resist, #f2f3f6); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; } .ds-sw-stamp { position: absolute; right: 12px; bottom: 12px; } .ds-sw-body { display: flex; flex: 1; flex-direction: column; gap: 12px; padding: 16px; } .ds-sw-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; } .ds-sw-name { margin: 0; font-family: var(--font-display, \"Rozha One\", Georgia, serif); font-weight: 400; font-size: 1.45rem; line-height: 1.15; } .ds-sw-name a { color: inherit; text-decoration: none; outline: none; } .ds-sw-name a::after { content: \"\"; position: absolute; inset: 0; } .ds-sw-city { margin: 4px 0 0; display: flex; align-items: center; gap: 4px; font-size: 0.95rem; color: var(--color-iron-2, #4b4640); } .ds-sw-save { position: relative; z-index: 1; margin: -4px -4px 0 0; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 3px; border: 1.5px solid transparent; background: transparent; color: var(--color-iron-2, #4b4640); cursor: pointer; transition: background-color 160ms, border-color 160ms, color 160ms; } .ds-sw-save:hover { border-color: var(--color-iron, #1d1a17); color: var(--color-iron, #1d1a17); } .ds-sw-save[aria-pressed=\"true\"] { background: var(--color-madder, #a3262a); border-color: var(--color-madder, #a3262a); color: var(--color-resist, #f2f3f6); } .ds-sw-save[aria-pressed=\"true\"] svg { fill: currentColor; } .ds-sw-save:focus-visible { outline: 2px solid var(--color-madder, #a3262a); outline-offset: 2px; } .ds-fb-compact { margin: auto 0 0; display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; border: 1.5px solid rgb(29 26 23 / 0.8); border-radius: 3px; font-size: 0.875rem; } .ds-fbc-cell { padding: 6px 10px; } .ds-fbc-cell + .ds-fbc-cell { border-left: 1px solid rgb(134 139 145 / 0.7); } .ds-fb-compact dt { font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-iron-3, #6b655d); line-height: 1.25; } .ds-fb-compact dd { margin: 0; display: flex; align-items: center; gap: 4px; font-weight: 700; line-height: 1.375; color: var(--color-iron, #1d1a17); font-variant-numeric: tabular-nums; } .ds-fbc-hours { grid-column: span 3; display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; border-top: 1px solid rgb(134 139 145 / 0.7); } .ds-fbc-hours dd { font-weight: 500; color: var(--color-iron-2, #4b4640); } .ds-latfield { position: absolute; inset: 0; width: 100%; height: 100%; } .ds-lf-line { stroke: var(--color-resist, #f2f3f6); } .ds-lf-fill { fill: var(--color-resist, #f2f3f6); } .ds-stamp { position: relative; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.22rem 0.6rem 0.16rem; border: 2px solid var(--color-madder, #a3262a); border-radius: 4px; outline: 1px solid var(--color-madder, #a3262a); outline-offset: 2px; color: var(--color-madder, #a3262a); background: rgb(250 251 252 / 0.92); font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1.2; white-space: nowrap; transform: rotate(var(--ds-rot, -9deg)); animation: ds-stamp-land 320ms cubic-bezier(0.16, 1, 0.3, 1) both; } .ds-stamp::after { content: \"\"; position: absolute; inset: -2px; border: 1px solid var(--color-madder, #a3262a); border-radius: 4px; transform: translate(1.5px, 1px); opacity: 0.35; pointer-events: none; } @keyframes ds-stamp-land { 0% { opacity: 0; transform: rotate(var(--ds-rot, -9deg)) scale(1.5); } 70% { opacity: 1; transform: rotate(var(--ds-rot, -9deg)) scale(0.96); } 100% { opacity: 1; transform: rotate(var(--ds-rot, -9deg)) scale(1); } } @media (prefers-reduced-motion: reduce) { .ds-stamp { animation: none; } }"
+    },
+    {
+      "name": "Fact Block",
+      "kind": "custom",
+      "refersTo": "fact-block",
+      "description": "The carved block every place is printed from: Cost, Stay, Rating, Hours in fixed cells, ruled 2px iron with a madder impression 2px off-register.",
+      "html": "<dl class=\"ds-fact\"><div class=\"ds-fact-cell\"><dt>Cost</dt><dd class=\"ds-fact-v\">₹</dd><dd class=\"ds-fact-n\">Budget</dd></div><div class=\"ds-fact-cell\"><dt>Stay</dt><dd class=\"ds-fact-v\">3 h</dd><dd class=\"ds-fact-n\">suggested visit</dd></div><div class=\"ds-fact-cell\"><dt>Rating</dt><dd class=\"ds-fact-v\">4.5 <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polygon points=\"12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2\"/></svg></dd><dd class=\"ds-fact-n\">from 2 reviews</dd></div><div class=\"ds-fact-cell\"><dt>Hours</dt><dd class=\"ds-fact-v ds-fact-v--sm\">Sunrise – Sunset · closed Fridays</dd></div></dl>",
+      "css": ".ds-fact { position: relative; isolation: isolate; margin: 4px 6px 8px 0; display: grid; grid-template-columns: 1fr 1fr 1fr 1.6fr; background: var(--color-paper, #fafbfc); border: 2px solid var(--color-iron, #1d1a17); border-radius: 3px; font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); color: var(--color-iron, #1d1a17); } .ds-fact::before { content: \"\"; position: absolute; inset: -2px; border: 1.5px solid var(--color-madder, #a3262a); border-radius: 3px; transform: translate(2px, 2px); opacity: 0.45; pointer-events: none; z-index: -1; } .ds-fact-cell { padding: 14px 16px; } .ds-fact-cell + .ds-fact-cell { border-left: 1.5px solid rgb(29 26 23 / 0.25); } .ds-fact dt { font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-iron-3, #6b655d); } .ds-fact dd { margin: 0; } .ds-fact .ds-fact-v { margin-top: 4px; display: flex; align-items: center; gap: 6px; font-size: 1.5rem; font-weight: 800; line-height: 1.25; font-variant-numeric: tabular-nums; } .ds-fact .ds-fact-v--sm { font-size: 1.125rem; } .ds-fact .ds-fact-n { margin-top: 2px; font-size: 0.875rem; color: var(--color-iron-3, #6b655d); } @media (max-width: 640px) { .ds-fact { grid-template-columns: 1fr 1fr; } .ds-fact-cell:nth-child(3) { border-left: 0; } .ds-fact-cell:nth-child(n+3) { border-top: 1.5px solid rgb(29 26 23 / 0.25); } }"
+    },
+    {
+      "name": "Stamp",
+      "kind": "custom",
+      "refersTo": "stamp",
+      "description": "A madder rubber stamp for state (Saved, You're going, Cheapest): double ring, off-register ghost, tilted, landing with one press.",
+      "html": "<div class=\"ds-stamp-demo\"><span class=\"ds-stamp\" style=\"--ds-rot: -9deg\">Saved</span><span class=\"ds-stamp\" style=\"--ds-rot: -4deg\">You're going</span><span class=\"ds-stamp\" style=\"--ds-rot: -6deg\">Cheapest</span></div>",
+      "css": ".ds-stamp-demo { display: flex; flex-wrap: wrap; align-items: center; gap: 28px; padding: 20px; background: var(--color-cotton, #eff1f2); } .ds-stamp { position: relative; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.22rem 0.6rem 0.16rem; border: 2px solid var(--color-madder, #a3262a); border-radius: 4px; outline: 1px solid var(--color-madder, #a3262a); outline-offset: 2px; color: var(--color-madder, #a3262a); background: rgb(250 251 252 / 0.92); font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1.2; white-space: nowrap; transform: rotate(var(--ds-rot, -9deg)); animation: ds-stamp-land 320ms cubic-bezier(0.16, 1, 0.3, 1) both; } .ds-stamp::after { content: \"\"; position: absolute; inset: -2px; border: 1px solid var(--color-madder, #a3262a); border-radius: 4px; transform: translate(1.5px, 1px); opacity: 0.35; pointer-events: none; } @keyframes ds-stamp-land { 0% { opacity: 0; transform: rotate(var(--ds-rot, -9deg)) scale(1.5); } 70% { opacity: 1; transform: rotate(var(--ds-rot, -9deg)) scale(0.96); } 100% { opacity: 1; transform: rotate(var(--ds-rot, -9deg)) scale(1); } } @media (prefers-reduced-motion: reduce) { .ds-stamp { animation: none; } }"
+    },
+    {
+      "name": "Sample Tag",
+      "kind": "chip",
+      "refersTo": "sample-tag",
+      "description": "Quiet label beside any seeded account's name, so sample data never passes as real people.",
+      "html": "<p class=\"ds-byline\">Shared by <strong>Meera Iyer</strong><span class=\"ds-sample-tag\">Sample traveler</span></p>",
+      "css": ".ds-byline { margin: 0; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); font-size: 1.02rem; color: var(--color-iron-2, #4b4640); } .ds-byline strong { font-weight: 600; color: var(--color-iron, #1d1a17); } .ds-sample-tag { display: inline-block; white-space: nowrap; padding: 0 6px; border: 1px solid var(--color-rule-strong, #868b91); border-radius: 2px; font-size: 0.7rem; font-weight: 700; line-height: 1.5; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-iron-3, #6b655d); }"
+    },
+    {
+      "name": "Kangura Fringe",
+      "kind": "custom",
+      "refersTo": "masthead",
+      "description": "The stepped-tooth border that finishes a dyed band, hanging into the cotton below; backed in opaque cotton under the sticky masthead.",
+      "html": "<div class=\"ds-fringe-demo\"><div class=\"ds-fringe-band\">All places</div><svg class=\"ds-fringe\" width=\"100%\" height=\"20\" aria-hidden=\"true\"><defs><pattern id=\"ds-teeth\" width=\"16\" height=\"20\" patternUnits=\"userSpaceOnUse\"><path class=\"ds-fr-dye\" d=\"M0 5 8 13 16 5Z\"/><circle class=\"ds-fr-dot\" cx=\"8.6\" cy=\"17\" r=\"1.5\"/></pattern></defs><rect class=\"ds-fr-back\" width=\"100%\" height=\"20\"/><rect class=\"ds-fr-dye\" width=\"100%\" height=\"6\"/><rect width=\"100%\" height=\"20\" fill=\"url(#ds-teeth)\"/></svg><p class=\"ds-fringe-field\">The cotton field begins under the teeth.</p></div>",
+      "css": ".ds-fringe-demo { background: var(--color-cotton, #eff1f2); font-family: var(--font-sans, \"Mukta\", ui-sans-serif, system-ui, sans-serif); } .ds-fringe-band { padding: 28px 24px 22px; background: var(--color-dye, #1b2550); color: var(--color-resist, #f2f3f6); font-family: var(--font-display, \"Rozha One\", Georgia, serif); font-size: 2.6rem; line-height: 1; } .ds-fringe { display: block; width: 100%; } .ds-fr-dye { fill: var(--color-dye, #1b2550); } .ds-fr-dot { fill: var(--color-madder, #a3262a); } .ds-fr-back { fill: var(--color-cotton, #eff1f2); } .ds-fringe-field { margin: 0; padding: 16px 24px 24px; color: var(--color-iron-2, #4b4640); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Carved Block",
+    "overview": "Every place is printed from the same carved block. The fact block (cost, stay, rating, hours) is one impression, inked with each place's real values, and it repeats in the same cells on every swatch, map row and detail page, so a Mughal tomb and a food crawl line up side by side. The material is hand block-printed cotton. Indigo dye floods whole bands: the masthead, the page heads, the map pane and the footer. The working field is bleached cotton, cool rather than cream, printed in iron-black. Madder red is the one action ink and turmeric (harda) marks highlights. Ajrakh-style lattice bands and a kangura stepped-tooth fringe, printed resist-white on indigo, mark where one printing pass ends and the next begins.\n\nEach page is a measured descent: an ornate dyed end-band at the top, a plain cotton field where the work happens, and a printed border to close. The home page persuades, so its indigo cloth runs large and the first row of swatches crosses the band's edge onto the cotton. Browse, map, place detail, sharing, profile and sign-in are operating surfaces. There the world shows up as precision and restraint: paper swatches, iron rules and tabular facts. Edges are hard and printed (2–4px radii) and depth is carried by ink rules, not shadows. The motion grammar is single presses, never floats: a filter inks in with one press, and a stamp lands and settles.\n\nConfirmed rejection: the category default, which is a photo hero with a floating search bar over a grid of rounded heart cards, and soft floating cards in general. Facts come before adjectives, and the system never prints a number that does not exist.",
+    "keyCharacteristics": [
+      "Indigo bands, cool cotton field, iron-black print, with madder as the only action ink and turmeric for highlights.",
+      "One fact block, identical everywhere a place appears.",
+      "State is printed as a stamp or an inked fill, never tinted.",
+      "Lattice end-band at the top, kangura fringe at band edges, lattice and fringe again at the close.",
+      "Rozha One (wood-type fat face) for names and headlines, Mukta for everything you read and operate.",
+      "Flat surfaces with hard 3px corners, separated by ink rules.",
+      "Motion as presses: ink-in, stamp-land, a 1px button press."
+    ],
+    "rules": [
+      {
+        "name": "The One Ink Rule",
+        "body": "Madder is the only action ink. Nothing else on a screen is red, and no second accent hue is introduced: the leaf-green ink was removed and stays out.",
+        "section": "colors"
+      },
+      {
+        "name": "The Turmeric Highlight Rule",
+        "body": "Turmeric marks and highlights. It never fills a button or carries an action, and it is never text on cotton or paper (2.2:1).",
+        "section": "colors"
+      },
+      {
+        "name": "The Ring Swap Rule",
+        "body": "Focus is a 2px madder outline offset 2px on cotton. Inside any indigo region (`.on-dye`) it switches to turmeric, because madder on indigo measures 2.0:1.",
+        "section": "colors"
+      },
+      {
+        "name": "The Wood-Type Rule",
+        "body": "Rozha One sets names and headlines: places, cities, people's initials, section heads, and big standalone numerals like a review average, a date or a 404. It never sets running text, labels, buttons or the values inside a fact block, and it is never bolded.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Facts Rule",
+        "body": "Every number meant for comparison uses tabular figures: costs, fares, durations, ratings, counts and dates.",
+        "section": "typography"
+      },
+      {
+        "name": "The Labels Name Data Rule",
+        "body": "The uppercase small-caps label names a datum. It never sits above a heading as a kicker.",
+        "section": "typography"
+      },
+      {
+        "name": "The Measured Descent Rule",
+        "body": "Every page reads ornate at the top, plain in the middle and bordered at the close: lattice end-band or fringe, cotton field, fringe and lattice footer.",
+        "section": "layout"
+      },
+      {
+        "name": "The Printing Pass Rule",
+        "body": "Sections are full-width horizontal passes divided by a printed band or a 2px iron rule. They are not stacks of boxed cards.",
+        "section": "layout"
+      },
+      {
+        "name": "The Printed-Not-Floating Rule",
+        "body": "Surfaces sit flat at rest and on hover. Hover answers with a darker rule or an inked fill, never a lift or a soft shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Registration Drift Rule",
+        "body": "The only offset in the system is a madder second impression 1–2px off-register, on stamps and the full fact block. It is crisp, never blurred.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do print every place's facts through the Fact Block, in the same cells and order (Cost as Free/₹/₹₹/₹₹₹, Stay, Rating, Hours), on swatches, map rows and detail pages.",
+      "Do say plainly when a fact doesn't exist yet: New, Unrated, No reviews yet, Not listed. Fill rating stars to the exact fractional value.",
+      "Do label every contribution from a seeded account with the Sample Tag, and add \"includes sample data\" to any count that includes it.",
+      "Do degrade optional integrations in the world's own materials. With no Google Maps key, plot places by coordinates on the indigo lattice and say in one line that the street map needs a key. With no Google client id, leave the Google sign-in block out entirely. When a place has no photo, show Place Art. When a photo upload fails, explain it in a Turmeric Wash notice.",
+      "Do print state as a Stamp or an inked fill: a saved swatch gets a madder Saved stamp and a filled bookmark, and a joined visit and the cheapest fare get stamps.",
+      "Do switch the focus ring to turmeric inside every indigo region (`.on-dye`).",
+      "Do keep chips at 40px or more, buttons at 44px and fields at 48px.",
+      "Do collapse every animation and transition to about 0ms under `prefers-reduced-motion: reduce`."
+    ],
+    "donts": [
+      "Don't build the category default: a photo hero with a floating search bar over a grid of rounded heart cards.",
+      "Don't print a number that doesn't exist: no invented counts, ratings, testimonials or fallback ratings.",
+      "Don't add a second action hue. Madder is the only action ink.",
+      "Don't put a soft or blurred shadow on a card, or lift it on hover.",
+      "Don't warm the field to cream or beige. Cotton is cool (#eff1f2).",
+      "Don't round buttons, chips, fields or containers beyond 4px. Circles are for avatars only.",
+      "Don't use indigo as a panel or card fill on the cotton field. There it appears only as small printed pieces (category tag, date block, photo ground).",
+      "Don't set running text, labels, buttons or fact values in Rozha One, and never bold it.",
+      "Don't put an uppercase kicker above a heading. Uppercase labels name data.",
+      "Don't show state as a colored badge or tint alone."
+    ]
+  }
+}

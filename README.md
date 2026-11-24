@@ -54,6 +54,26 @@ tourism/
 
 ##  Getting Started
 
+### Quick start (local, with sample data)
+
+Needs Node.js 20+ and MongoDB running on `localhost:27017`.
+
+```bash
+# Backend: http://localhost:5001
+cd backend
+npm install
+cp .env.example .env        # set MONGODB_URI=mongodb://localhost:27017/travel-explorer and a JWT_SECRET
+npm run seed                # optional: 12 sample places, reviews and a demo login (empty DB only)
+npm run dev
+
+# Frontend: http://localhost:5173
+cd frontend
+npm install
+npm run dev
+```
+
+The seed creates the demo account `demo@travelexplorer.dev` / `explore123`. Google Maps, Cloudinary and Google sign-in keys are optional. Without them, the map plots places by their coordinates, photos can be added as image links, and sign-in uses email and password.
+
 ### Prerequisites
 - Node.js v20+
 - MongoDB Atlas account
@@ -151,6 +171,10 @@ CORS_ORIGIN=https://tourismfront-sigma.vercel.app
 
 ### Health Check
 - `GET /health` - Server status
+
+### Stats
+- `GET /api/stats` - Community counts (places, cities, reviews, travelers, top cities)
+- `GET /api/stats/me` - Your places shared, reviews and saved places (auth)
 
 ### Authentication
 - `POST /api/auth/register` - Register user
