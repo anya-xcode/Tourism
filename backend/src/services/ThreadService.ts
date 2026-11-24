@@ -31,13 +31,13 @@ export class ThreadService {
    */
   async getThreadsByPlace(placeId: string): Promise<any[]> {
     const threads = await Thread.find({ placeId })
-      .populate('userId', 'name avatar')
+      .populate('userId', 'name avatar isSample')
       .sort('-createdAt');
 
     const result = await Promise.all(
       threads.map(async (t) => {
         const replies = await ThreadReply.find({ threadId: t._id })
-          .populate('userId', 'name avatar')
+          .populate('userId', 'name avatar isSample')
           .sort('createdAt');
 
         const composite = new ThreadComposite(
@@ -62,7 +62,13 @@ export class ThreadService {
           );
         });
 
-        return composite.toJSON();
+        // Mark contributions from seeded sample accounts so the UI can label them
+        const json = composite.toJSON() as { replies: object[] } & Record<string, unknown>;
+        return {
+          ...json,
+          userIsSample: Boolean((t.userId as any).isSample),
+          replies: json.replies.map((reply, i) => ({ ...reply, userIsSample: Boolean((replies[i].userId as any).isSample) })),
+        };
       })
     );
 

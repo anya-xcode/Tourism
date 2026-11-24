@@ -11,6 +11,7 @@ import aiRoutes from './aiRoutes';
 import bookmarkRoutes from './bookmarkRoutes';
 import adminRoutes from './adminRoutes';
 import navigationRoutes from './navigationRoutes';
+import statsRoutes from './statsRoutes';
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use('/ai', aiRoutes);
 router.use('/bookmarks', bookmarkRoutes);
 router.use('/admin', adminRoutes);
 router.use('/navigation', navigationRoutes);
+router.use('/stats', statsRoutes);
 
 export default router;

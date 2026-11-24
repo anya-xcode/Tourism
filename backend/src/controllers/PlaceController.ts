@@ -17,7 +17,9 @@ export class PlaceController {
       budgetRange: req.query.budgetRange as any,
       search: req.query.search as string,
       page: parseInt(req.query.page as string) || 1,
-      limit: parseInt(req.query.limit as string) || 12,
+      limit: Math.min(parseInt(req.query.limit as string) || 12, 100),
+      // Only whitelisted sorts reach Mongo
+      sortBy: req.query.sortBy === 'rating' ? '-averageRating -totalReviews -createdAt' : '-createdAt',
     };
     const result = await this.placeService.getPlaces(filters);
     res.status(200).json(result);

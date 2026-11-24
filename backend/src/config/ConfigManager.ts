@@ -56,6 +56,16 @@ class ConfigManager {
     return process.env.GOOGLE_MAPS_API_KEY || '';
   }
 
+  // ─── CORS ────────────────────────────────────────────
+  /** CORS_ORIGIN may hold one origin or a comma-separated list. */
+  public getCorsOrigins(): string[] {
+    const raw = process.env.CORS_ORIGIN;
+    if (!raw) {
+      return ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:3001'];
+    }
+    return raw.split(',').map((o) => o.trim()).filter(Boolean);
+  }
+
   // ─── Utility ─────────────────────────────────────────
   public get(key: string, defaultValue: string = ''): string {
     return process.env[key] || defaultValue;

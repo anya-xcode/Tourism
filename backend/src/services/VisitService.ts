@@ -19,7 +19,7 @@ export class VisitService {
 
     const events = await VisitEvent.find(query)
       .populate('placeId', 'name city')
-      .populate('creatorId', 'name avatar')
+      .populate('creatorId', 'name avatar isSample')
       .sort('scheduledDate');
 
     // Attach participation counts
@@ -57,6 +57,6 @@ export class VisitService {
   }
 
   async getParticipants(eventId: string): Promise<any[]> {
-    return VisitRSVP.find({ eventId }).populate('userId', 'name avatar');
+    return VisitRSVP.find({ eventId }).populate('userId', 'name avatar isSample');
   }
 }

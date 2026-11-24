@@ -44,7 +44,7 @@ export class PlaceService {
   }
 
   async getPlaceById(id: string): Promise<IPlace> {
-    const place = await Place.findById(id).populate('addedBy', 'name avatar');
+    const place = await Place.findById(id).populate('addedBy', 'name avatar isSample');
     if (!place) throw new AppError('Place not found', 404);
     return place;
   }

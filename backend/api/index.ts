@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
+// Forward errors thrown in async route handlers to the error middleware
+// (Express 4 does not do this on its own; without it a rejected handler crashes the process)
+import 'express-async-errors';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -26,13 +29,9 @@ ServiceFactory.getInstance().initializeObservers();
 
 logger.info('All singletons initialized successfully', 'Bootstrap');
 
-// Configure CORS based on environment variable
+// Configure CORS — CORS_ORIGIN accepts a comma-separated list
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:3001'
-  ],
+  origin: config.getCorsOrigins(),
   credentials: true,
   optionsSuccessStatus: 200
 };

@@ -28,7 +28,7 @@ export class BookmarkService {
     if (type) query.type = type;
 
     return Bookmark.find(query)
-      .populate('placeId', 'name city photos category averageRating')
+      .populate('placeId', 'name city photos category averageRating totalReviews budgetRange operatingHours suggestedDurationMinutes')
       .populate('reelId', 'caption videoUrl thumbnailUrl')
       .sort('-createdAt');
   }
