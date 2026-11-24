@@ -1,10 +1,20 @@
-import { useParams, Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-  Star, MapPin, Clock, Calendar, Users, MessageSquare,
-  ChevronRight, Car, Camera, Info, Heart, Award,
-  Send, ThumbsUp
+  Bookmark,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Images,
+  MapPin,
+  MessageSquare,
+  Navigation,
+  Send,
+  Star,
+  ThumbsUp,
+  Users,
+  X,
 } from 'lucide-react';
 import { PlaceService } from '../services/PlaceService';
 import { ReviewService } from '../services/ReviewService';
@@ -12,694 +22,1015 @@ import { ThreadService } from '../services/ThreadService';
 import { VisitService } from '../services/VisitService';
 import { RideService } from '../services/RideService';
 import { useAuth } from '../context/AuthContext';
+import { useSavedPlaces } from '../context/SavedPlacesContext';
 import ScheduleVisit from '../components/places/ScheduleVisit';
-import { getOptimizedUrl } from '../utils/cloudinaryUtils';
-import type { IPlace, IReview, IThread, IVisitEvent, IFareEstimate } from '../types';
+import { FactBlock } from '../components/print/FactBlock';
+import { PlaceArt, SampleTag, Stamp } from '../components/print/Print';
+import { Avatar } from '../components/layout/Navbar';
+import type { IFareEstimate, IPlace, IReview, IThread, IVisitEvent } from '../types';
+import {
+  errorMessage,
+  formatDate,
+  googleMapsUrl,
+  hasRating,
+  photoUrl,
+  plainText,
+  plural,
+} from '../lib/format';
 
-const PlaceDetails = () => {
-  const { id } = useParams();
+type TabId = 'about' | 'reviews' | 'discussion' | 'visits';
+
+type FareState =
+  | { status: 'idle' }
+  | { status: 'locating' | 'loading' }
+  | { status: 'done'; fares: IFareEstimate[] }
+  | { status: 'error'; message: string };
+
+const PlaceDetailsView = ({ id }: { id: string }) => {
   const { user } = useAuth();
-  const [place, setPlace] = useState<IPlace | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('Overview');
+  const { isSaved, toggle } = useSavedPlaces();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Tab data
+  const [place, setPlace] = useState<IPlace | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading');
+  const [loadError, setLoadError] = useState('');
+  const [tab, setTab] = useState<TabId>('about');
   const [reviews, setReviews] = useState<IReview[]>([]);
   const [threads, setThreads] = useState<IThread[]>([]);
   const [events, setEvents] = useState<IVisitEvent[]>([]);
-  const [fares, setFares] = useState<IFareEstimate[]>([]);
-  const [faresLoading, setFaresLoading] = useState(false);
-
-  // Forms
-  const [reviewForm, setReviewForm] = useState({ rating: 5, text: '' });
-  const [threadForm, setThreadForm] = useState('');
-  const [replyForms, setReplyForms] = useState<Record<string, string>>({});
+  const [lightbox, setLightbox] = useState<number | null>(null);
   const [showSchedule, setShowSchedule] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [liked, setLiked] = useState(false);
+  const [fares, setFares] = useState<FareState>({ status: 'idle' });
+  const [notice, setNotice] = useState<string>((location.state as { uploadNotice?: string } | null)?.uploadNotice || '');
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    const fetchData = async () => {
-      try {
-        const placeData = await PlaceService.getPlaceById(id!);
-        setPlace(placeData);
-      } catch (err) {
-        console.error('Error fetching place details:', err);
-      } finally {
-        setLoading(false);
+  const goSignIn = useCallback(
+    () => navigate('/login', { state: { from: location.pathname } }),
+    [navigate, location.pathname],
+  );
+
+  const loadPlace = useCallback(async () => {
+    try {
+      const data = await PlaceService.getPlaceById(id);
+      setPlace(data);
+      setStatus('ready');
+    } catch (err) {
+      const code = (err as { response?: { status?: number } })?.response?.status;
+      if (code === 404 || code === 400) setStatus('missing');
+      else {
+        setLoadError(errorMessage(err, 'This place could not be loaded.'));
+        setStatus('error');
       }
-    };
-    fetchData();
+    }
   }, [id]);
 
-  useEffect(() => {
-    if (!id) return;
-    if (activeTab === 'Reviews') {
-      ReviewService.getByPlace(id).then(setReviews).catch(console.error);
-    } else if (activeTab === 'Community Feed') {
-      ThreadService.getByPlace(id).then(setThreads).catch(console.error);
-    } else if (activeTab === 'Events') {
-      VisitService.getUpcoming(id).then(setEvents).catch(console.error);
-    }
-  }, [activeTab, id]);
+  const loadReviews = useCallback(() => ReviewService.getByPlace(id).then(setReviews).catch(() => setReviews([])), [id]);
+  const loadThreads = useCallback(() => ThreadService.getByPlace(id).then(setThreads).catch(() => setThreads([])), [id]);
+  const loadEvents = useCallback(() => VisitService.getUpcoming(id).then(setEvents).catch(() => setEvents([])), [id]);
 
   useEffect(() => {
-    if (!place || !place.location || !place.location.coordinates) return;
-    const fetchFares = async () => {
-      setFaresLoading(true);
-      try {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-              const origin = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-              const destination = {
-                latitude: place.location.coordinates[1],
-                longitude: place.location.coordinates[0],
-              };
-              const estimates = await RideService.compareFares(origin, destination);
-              setFares(estimates);
-              setFaresLoading(false);
-            },
-            () => {
-              const origin = { latitude: 28.6139, longitude: 77.209 };
-              const destination = {
-                latitude: place.location.coordinates[1],
-                longitude: place.location.coordinates[0],
-              };
-              RideService.compareFares(origin, destination)
-                .then(setFares)
-                .catch(console.error)
-                .finally(() => setFaresLoading(false));
-            }
+    // Data fetch on mount: every setState in these loaders runs after an await
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadPlace();
+    loadReviews();
+    loadThreads();
+    loadEvents();
+  }, [loadPlace, loadReviews, loadThreads, loadEvents]);
+
+  const compareFares = () => {
+    if (!user) return goSignIn();
+    if (!place?.location?.coordinates || !navigator.geolocation) {
+      setFares({ status: 'error', message: 'Your browser does not share location, so fares cannot be estimated here.' });
+      return;
+    }
+    setFares({ status: 'locating' });
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setFares({ status: 'loading' });
+        try {
+          const result = await RideService.compareFares(
+            { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
+            { latitude: place.location.coordinates[1], longitude: place.location.coordinates[0] },
           );
+          setFares({ status: 'done', fares: result });
+        } catch (err) {
+          setFares({ status: 'error', message: errorMessage(err, 'Fares could not be estimated right now.') });
         }
-      } catch {
-        setFaresLoading(false);
-      }
-    };
-    fetchFares();
-  }, [place]);
-
-  const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reviewForm.text.trim()) return;
-    setSubmitting(true);
-    try {
-      await ReviewService.create({ placeId: id!, ...reviewForm });
-      const updated = await ReviewService.getByPlace(id!);
-      setReviews(updated);
-      setReviewForm({ rating: 5, text: '' });
-    } catch (err) {
-      console.error('Error submitting review:', err);
-    } finally {
-      setSubmitting(false);
-    }
+      },
+      () =>
+        setFares({
+          status: 'error',
+          message: 'Location access was blocked. Allow it for this site to estimate fares from where you are.',
+        }),
+      { enableHighAccuracy: false, timeout: 10000 },
+    );
   };
 
-  const handleVoteHelpful = async (reviewId: string) => {
-    try {
-      await ReviewService.voteHelpful(reviewId);
-      const updated = await ReviewService.getByPlace(id!);
-      setReviews(updated);
-    } catch (err) {
-      console.error('Vote failed:', err);
-    }
-  };
+  if (status === 'loading') {
+    return (
+      <div className="page-wrap py-16" aria-busy="true">
+        <div className="skeleton h-12 w-2/3 max-w-xl rounded-[3px]" />
+        <div className="skeleton mt-8 h-[320px] rounded-[3px] md:h-[440px]" />
+      </div>
+    );
+  }
 
-  const handleCreateThread = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!threadForm.trim()) return;
-    setSubmitting(true);
-    try {
-      await ThreadService.createThread({ placeId: id!, content: threadForm });
-      const updated = await ThreadService.getByPlace(id!);
-      setThreads(updated);
-      setThreadForm('');
-    } catch (err) {
-      console.error('Error creating thread:', err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  if (status === 'missing' || status === 'error' || !place) {
+    return (
+      <section className="page-wrap flex flex-1 flex-col justify-center py-24">
+        <h1 className="max-w-[20ch] font-display text-[2.4rem] leading-[1.05] text-iron">
+          {status === 'missing' ? 'This place isn’t in the collection.' : 'This place didn’t load.'}
+        </h1>
+        <p className="mt-3 max-w-[50ch] text-[1.1rem] text-iron-2">
+          {status === 'missing' ? 'It may have been removed, or the link is mistyped.' : loadError}
+        </p>
+        <div className="mt-8 flex gap-3">
+          {status === 'error' && (
+            <button type="button" className="btn-ink" onClick={loadPlace}>
+              Try again
+            </button>
+          )}
+          <Link to="/uploads" className="btn-line">
+            Browse all places
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
-  const handleCreateReply = async (threadId: string) => {
-    const content = replyForms[threadId];
-    if (!content?.trim()) return;
-    try {
-      await ThreadService.createReply({ threadId, content });
-      const updated = await ThreadService.getByPlace(id!);
-      setThreads(updated);
-      setReplyForms({ ...replyForms, [threadId]: '' });
-    } catch (err) {
-      console.error('Error creating reply:', err);
-    }
-  };
+  const name = plainText(place.name);
+  const photos = (place.photos || []).map((p) => photoUrl(p)).filter((p): p is string => Boolean(p));
+  const saved = isSaved(place._id);
+  const addedBy = typeof place.addedBy === 'object' ? place.addedBy : null;
+  const directions = googleMapsUrl(place, true);
+  const mapLink = googleMapsUrl(place);
 
-  const handleRSVP = async (eventId: string) => {
-    try {
-      await VisitService.rsvp(eventId, 'going');
-      const updated = await VisitService.getUpcoming(id);
-      setEvents(updated);
-    } catch (err) {
-      console.error('RSVP failed:', err);
-    }
-  };
-
-  const providerColors: Record<string, { bg: string; text: string; label: string }> = {
-    Uber: { bg: 'bg-black', text: 'text-white', label: 'Uber' },
-    Ola: { bg: 'bg-green-600', text: 'text-white', label: 'Ola' },
-    Rapido: { bg: 'bg-yellow-400', text: 'text-black', label: 'Rapido' },
-  };
-  
-  const getImageUrl = (url: string) => {
-    if (!url) return '';
-    // If it's a Cloudinary URL, optimize it
-    if (url.includes('cloudinary.com')) {
-      return getOptimizedUrl(url);
-    }
-    // Handle local dev uploads if any
-    if (url.startsWith('http') || url.startsWith('data:')) return url;
-    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5001';
-    return `${baseUrl}/${url}`;
-  };
-
-  const images = place?.photos?.length ? place.photos.map(getImageUrl) : [
-    "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=1200",
-    "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&q=80&w=600",
-    "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=600"
+  const tabs: { id: TabId; label: string }[] = [
+    { id: 'about', label: 'About' },
+    { id: 'reviews', label: `Reviews (${reviews.length})` },
+    { id: 'discussion', label: `Discussion (${threads.length})` },
+    { id: 'visits', label: `Visits (${events.length})` },
   ];
 
-  if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50">
-      <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
-    </div>
-  );
-
-  if (!place) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold mb-4 text-gray-900">Place not found</h1>
-        <Link to="/uploads" className="text-blue-600 hover:underline">Return to Experiences</Link>
-      </div>
-    </div>
-  );
-
-  const pruneMarkdown = (text: string) => {
-    if (!text) return '';
-    // Removes hashes, bold/italic markers, and trailing/leading whitespace
-    return text.replace(/[#*`_~]/g, '').trim();
+  const onTabKey = (e: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const next = (index + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    setTab(tabs[next].id);
+    document.getElementById(`tab-${tabs[next].id}`)?.focus();
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      style={{ background: '#fafbfc', minHeight: '100vh', paddingBottom: 96 }}
-    >
-      <div style={{ background: '#fff', borderBottom: '1px solid #f1f5f9' }}>
-        <div className="container-custom" style={{ maxWidth: 1200, paddingTop: 24, paddingBottom: 24 }}>
-          {/* Breadcrumbs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>
-            <Link to="/uploads" style={{ color: '#64748b', textDecoration: 'none', transition: 'color 0.2s' }}>Experiences</Link>
-            <ChevronRight size={14} style={{ color: '#cbd5e1' }} />
-            <span style={{ color: '#0f172a' }}>{pruneMarkdown(place.name)}</span>
+    <article className="pb-24">
+      {notice && (
+        <div role="status" className="border-b border-turmeric bg-turmeric-wash">
+          <div className="page-wrap flex items-start justify-between gap-4 py-3 pt-8 text-iron">
+            <p>{notice}</p>
+            <button type="button" onClick={() => setNotice('')} className="shrink-0 font-semibold underline">
+              Dismiss
+            </button>
           </div>
-
-          <motion.div
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: { staggerChildren: 0.1 }
-              }
-            }}
-            initial="hidden"
-            animate="show"
-            className="grid grid-cols-4 grid-rows-2"
-            style={{ gap: 6, height: 420, borderRadius: 20, overflow: 'hidden' }}
-          >
-            <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-2 row-span-2 relative group overflow-hidden" style={{ borderRadius: '20px 0 0 20px' }}>
-              <img src={images[0]} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Main View" />
-            </motion.div>
-            <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-1 row-span-1 relative group overflow-hidden">
-              <img src={images[1] || images[0]} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="View 1" />
-            </motion.div>
-            <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-1 row-span-1 relative group overflow-hidden" style={{ borderRadius: '0 20px 0 0' }}>
-              <img src={images[2] || images[0]} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="View 2" />
-            </motion.div>
-            <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="col-span-2 row-span-1 relative group overflow-hidden" style={{ borderRadius: '0 0 20px 0' }}>
-              <img src={images[3] || images[0]} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="View 3" />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/30 transition-colors">
-                <button style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.9)', color: '#0f172a', padding: '8px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', backdropFilter: 'blur(8px)' }}>
-                  <Camera size={15} /> Show all photos
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
         </div>
-      </div>
+      )}
 
-      <div className="container-custom" style={{ maxWidth: 1200, marginTop: 36 }}>
-        <div className="grid grid-cols-1 lg:grid-cols-12" style={{ gap: 32 }}>
+      <div className="page-wrap pt-10">
+        <nav aria-label="Breadcrumb" className="text-[0.95rem] text-iron-2">
+          <ol className="flex flex-wrap items-center gap-1.5">
+            <li>
+              <Link to="/uploads" className="text-iron-2 hover:text-iron">
+                All places
+              </Link>
+            </li>
+            <li aria-hidden="true">/</li>
+            <li>
+              <Link to={`/uploads?city=${encodeURIComponent(place.city)}`} className="text-iron-2 hover:text-iron">
+                {place.city}
+              </Link>
+            </li>
+            <li aria-hidden="true">/</li>
+            <li aria-current="page" className="truncate font-semibold text-iron">
+              {name}
+            </li>
+          </ol>
+        </nav>
 
-          {/* Main Content Area */}
-          <div className="lg:col-span-8">
-            <div style={{ marginBottom: 40 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, marginBottom: 20 }}>
-                <div style={{ flex: 1 }}>
-                  <h1 className="font-poppins" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginBottom: 16 }}>{pruneMarkdown(place.name)}</h1>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, fontSize: 15 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#0f172a', background: '#f1f5f9', padding: '6px 14px', borderRadius: 99 }}>
-                      <Star size={16} style={{ fill: '#0f172a' }} />
-                      <span>{place.averageRating || '4.8'}</span>
-                    </div>
-                    <span style={{ color: '#cbd5e1' }}>•</span>
-                    <span style={{ color: '#64748b', fontWeight: 600, borderBottom: '1.5px solid #e2e8f0', cursor: 'pointer' }}>{place.totalReviews || '0'} reviews</span>
-                    <span style={{ color: '#cbd5e1' }}>•</span>
-                    <span style={{ color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, textTransform: 'capitalize' }}>
-                      <MapPin size={16} style={{ color: '#6366f1' }} /> {place.city}
-                    </span>
-                  </div>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setLiked(!liked)}
-                  style={{ width: 48, height: 48, borderRadius: '50%', background: '#fff', border: '1.5px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s', boxShadow: '0 4px 12px -2px rgba(0,0,0,0.06)' }}
-                >
-                  <Heart size={20} fill={liked ? '#ef4444' : 'none'} className={liked ? 'text-red-500' : 'text-gray-400'} />
-                </motion.button>
-              </div>
+        <div className="mt-4 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="min-w-0">
+            <h1 className="font-display text-[2.5rem] leading-[1.02] tracking-[-0.01em] text-iron md:text-[3.6rem]">{name}</h1>
+            <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[1.02rem] text-iron-2">
+              <span className="rounded-[2px] bg-dye px-2 py-0.5 text-sm font-bold uppercase tracking-[0.08em] text-resist">
+                {place.category}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <MapPin size={16} aria-hidden="true" /> {place.city}
+              </span>
+              {/* Byline pieces are separate flex items, so a wrap never leaves a dangling separator */}
+              {addedBy && (
+                <span className="inline-flex flex-wrap items-center gap-x-2">
+                  <span>
+                    Shared by <strong className="font-semibold text-iron">{addedBy.name}</strong>
+                  </span>
+                  {addedBy.isSample && <SampleTag inline={false} />}
+                </span>
+              )}
+              {place.createdAt && (
+                <time dateTime={place.createdAt} className="whitespace-nowrap">
+                  {formatDate(place.createdAt)}
+                </time>
+              )}
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => toggle(place._id)}
+              aria-pressed={saved}
+              className={saved ? 'btn-ink' : 'btn-line'}
+            >
+              <Bookmark size={17} className={saved ? 'fill-current' : ''} aria-hidden="true" />
+              {saved ? 'Saved' : 'Save'}
+            </button>
+            {directions && (
+              <a href={directions} target="_blank" rel="noreferrer" className="btn-line">
+                <Navigation size={16} aria-hidden="true" />
+                Directions
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* Gallery */}
+        <div className="mt-8">
+          {photos.length === 0 ? (
+            <div className="h-[260px] overflow-hidden rounded-[3px] md:h-[380px]">
+              <PlaceArt name={name} />
             </div>
-
-            <div className="h-px bg-gray-200 w-full mb-10" />
-            {/* Navigation Tabs */}
-            <div className="flex gap-10 mb-10 overflow-x-auto scrollbar-hide border-b border-gray-100">
-              {['Overview', 'Community Feed', 'Reviews', 'Events'].map(tab => (
+          ) : photos.length === 1 ? (
+            <button
+              type="button"
+              onClick={() => setLightbox(0)}
+              className="block aspect-[4/3] w-full overflow-hidden rounded-[3px] bg-dye md:aspect-[21/9]"
+              aria-label={`View photo of ${name}`}
+            >
+              <img src={photos[0]} alt="" className="h-full w-full object-cover" />
+            </button>
+          ) : (
+            <div className="grid gap-2 md:h-[460px] md:grid-cols-[2fr_1fr] md:grid-rows-2">
+              <button
+                type="button"
+                onClick={() => setLightbox(0)}
+                className="relative aspect-[4/3] overflow-hidden rounded-[3px] bg-dye md:row-span-2 md:aspect-auto"
+                aria-label={`View photo 1 of ${photos.length}`}
+              >
+                <img src={photos[0]} alt="" className="h-full w-full object-cover" />
+                <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-[3px] bg-paper px-3 py-1.5 text-sm font-bold text-iron md:hidden">
+                  <Images size={15} aria-hidden="true" /> {photos.length} photos
+                </span>
+              </button>
+              {photos.slice(1, 3).map((src, i) => (
                 <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`pb-5 text-[15px] font-bold relative transition-all whitespace-nowrap px-1 ${
-                    activeTab === tab ? 'text-gray-900' : 'text-gray-400 hover:text-gray-900'
-                  }`}
+                  key={src}
+                  type="button"
+                  onClick={() => setLightbox(i + 1)}
+                  className={`relative hidden overflow-hidden rounded-[3px] bg-dye md:block ${photos.length === 2 ? 'md:row-span-2' : ''}`}
+                  aria-label={`View photo ${i + 2} of ${photos.length}`}
                 >
-                  {tab}
-                  {activeTab === tab && (
-                    <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-900 rounded-full" />
+                  <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  {i === 1 && photos.length > 3 && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-dye/60 font-display text-2xl text-resist">
+                      +{photos.length - 3} more
+                    </span>
                   )}
                 </button>
               ))}
             </div>
+          )}
+        </div>
 
-            <AnimatePresence mode="popLayout">
-              {/* ─── Overview Tab ──────────────────────────── */}
-              {activeTab === 'Overview' && (
-                <motion.div
-                  key="overview"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -15 }}
-                  transition={{ duration: 0.3, ease: 'easeOut' }}
-                  className="mb-12 text-gray-800"
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
-                    <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md min-h-[160px]">
-                      <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
-                        <Clock className="text-indigo-600" size={24} />
-                      </div>
-                      <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Time Spent</p>
-                      <p className="text-gray-900 font-bold text-lg">{place.suggestedDurationMinutes} mins</p>
-                    </div>
-                    <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md min-h-[160px]">
-                      <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
-                        <Calendar className="text-indigo-600" size={24} />
-                      </div>
-                      <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Hours</p>
-                      <p className="text-gray-900 font-bold text-lg whitespace-pre-wrap">{place.operatingHours || '09:00 - 18:00'}</p>
-                    </div>
-                    <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md min-h-[160px]">
-                      <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
-                        <Star className="text-indigo-600" size={24} />
-                      </div>
-                      <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Entry</p>
-                      <p className="text-gray-900 font-bold text-lg">{place.category || 'Free Access'}</p>
-                    </div>
-                  </div>
-
-                  <h3 className="text-2xl font-bold mb-6 text-gray-900">About this place</h3>
-                  <p className="text-gray-600 text-lg leading-relaxed mb-10">{pruneMarkdown(place.description)}</p>
-                  
-                  {place.tags && place.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-3 mb-12">
-                      {place.tags.map((tag: string) => (
-                        <span key={tag} className="bg-gray-100 py-2.5 px-6 rounded-xl text-sm font-bold text-gray-700 border border-gray-200">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <div className="h-px bg-gray-100 w-full mb-12" />
-                  
-                  <div>
-                    <h3 className="text-2xl font-bold mb-8 flex items-center gap-4 text-gray-900">
-                      <div className="p-2.5 bg-gray-900 rounded-xl text-white">
-                        <Info size={20} />
-                      </div>
-                      What to know
-                    </h3>
-                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {[
-                        'Verified Local Context',
-                        'Optimized Travel Paths',
-                        'Community-Sourced Visuals',
-                        'Real-time Access Guides'
-                      ].map((tip, i) => (
-                        <li key={i} className="flex items-start gap-4 text-lg text-gray-700 font-medium">
-                          <div className="p-1 bg-teal-50 text-teal-600 rounded-full mt-1">
-                            <CheckIcon size={14} />
-                          </div>
-                          <span>{tip}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* ─── Reviews Tab ──────────────────────────── */}
-              {activeTab === 'Reviews' && (
-                <motion.div
-                  key="reviews"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-6"
-                >
-                  <div className="flex items-center gap-4 text-2xl font-semibold text-gray-900 mb-6">
-                    <Star size={24} className="fill-gray-900" />
-                    <span>{place.averageRating || '4.8'} out of 5</span>
-                  </div>
-
-                  {user && (
-                    <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-200 mb-8">
-                       <h4 className="text-lg font-semibold mb-4 text-gray-900">Write a Review</h4>
-                       <form onSubmit={handleSubmitReview}>
-                         <div className="flex gap-2 mb-4">
-                           {[1, 2, 3, 4, 5].map(n => (
-                             <button type="button" key={n} onClick={() => setReviewForm({...reviewForm, rating: n})}>
-                               <Star size={20} className={n <= reviewForm.rating ? 'fill-gray-900 text-gray-900' : 'text-gray-300'} />
-                             </button>
-                           ))}
-                         </div>
-                         <textarea
-                           rows={3}
-                           className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 transition-all resize-none mb-4"
-                           placeholder="Share details of your own experience at this place"
-                           value={reviewForm.text}
-                           onChange={(e) => setReviewForm({ ...reviewForm, text: e.target.value })}
-                           required
-                         />
-                         <button type="submit" disabled={submitting} className="h-12 px-6 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-gray-800 transition-colors shadow-sm disabled:opacity-50">
-                           {submitting ? 'Posting...' : 'Post Review'}
-                         </button>
-                       </form>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {reviews.length > 0 ? reviews.map(r => (
-                      <div key={r._id} className="p-6 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                         <div>
-                            <div className="flex items-center gap-3 mb-4">
-                               <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center font-semibold text-gray-600 text-lg">
-                                  {typeof r.userId !== 'string' && r.userId?.avatar ? <img src={r.userId.avatar} className="object-cover w-full h-full" alt="" /> : (typeof r.userId !== 'string' ? r.userId?.name?.charAt(0) : 'U')}
-                               </div>
-                               <div>
-                                  <p className="font-semibold text-gray-900">{typeof r.userId !== 'string' ? r.userId.name : 'Anonymous'}</p>
-                                  <p className="text-xs text-gray-500">{new Date(r.createdAt).toLocaleDateString()}</p>
-                               </div>
-                            </div>
-                            <div className="flex gap-1 mb-2">
-                               {Array.from({length: 5}).map((_, i) => <Star key={i} size={14} className={i < r.rating ? 'text-gray-900 fill-gray-900' : 'text-gray-200'} />)}
-                            </div>
-                            <p className="text-[15px] text-gray-700 leading-relaxed mb-4">{r.text}</p>
-                         </div>
-                         <button onClick={() => handleVoteHelpful(r._id)} className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 transition-colors w-fit border border-gray-200 px-3 py-1.5 rounded-lg active:scale-95">
-                           <ThumbsUp size={14} /> Helpful ({r.helpfulVotes || 0})
-                         </button>
-                      </div>
-                    )) : (
-                      <div className="col-span-2 text-center py-12 border border-dashed border-gray-300 rounded-2xl bg-white">
-                         <p className="text-gray-500 font-medium">No reviews yet.</p>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* ─── Community Feed Tab ───────────────────── */}
-              {activeTab === 'Community Feed' && (
-                <motion.div
-                  key="community"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-6"
-                >
-                  {user && (
-                    <form onSubmit={handleCreateThread} className="relative p-6 bg-white border border-gray-200 rounded-2xl shadow-sm flex gap-3">
-                       <input
-                         type="text"
-                         className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-gray-200 focus:outline-none"
-                         placeholder="Start a discussion or ask a question..."
-                         value={threadForm}
-                         onChange={(e) => setThreadForm(e.target.value)}
-                         required
-                       />
-                       <button type="submit" disabled={submitting} className="h-[46px] px-6 bg-gray-900 text-white font-semibold rounded-xl text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors">
-                         <Send size={16} /> Post
-                       </button>
-                    </form>
-                  )}
-                  
-                  <div className="space-y-4">
-                     {threads.length > 0 ? threads.map(t => (
-                       <div key={t.id} className="p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
-                          <div className="flex items-center gap-3 mb-3">
-                             <div className="w-10 h-10 rounded-full font-bold bg-blue-100 text-blue-800 flex items-center justify-center text-sm">{t.userName?.charAt(0)}</div>
-                             <div>
-                                <h4 className="font-semibold text-gray-900 text-sm">{t.userName}</h4>
-                                <p className="text-xs text-gray-500">{new Date(t.createdAt).toLocaleDateString()}</p>
-                             </div>
-                          </div>
-                          <p className="text-[15px] text-gray-800 mb-4">{t.content}</p>
-                          
-                          {t.replies?.length > 0 && (
-                            <div className="pl-6 border-l-2 border-gray-100 space-y-4 mb-4">
-                               {t.replies.map(rep => (
-                                 <div key={rep.id} className="bg-gray-50 p-4 rounded-xl">
-                                    <div className="flex items-center gap-2 mb-1">
-                                       <span className="font-semibold text-sm text-gray-900">{rep.userName}</span>
-                                       <span className="text-xs text-gray-400">{new Date(rep.createdAt).toLocaleDateString()}</span>
-                                    </div>
-                                    <p className="text-sm text-gray-700">{rep.content}</p>
-                                 </div>
-                               ))}
-                            </div>
-                          )}
-                          
-                          {user && (
-                            <div className="flex gap-2">
-                               <input 
-                                 type="text" 
-                                 className="flex-1 text-sm bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 hover:border-gray-300 focus:border-gray-400 outline-none transition-colors"
-                                 placeholder="Add a reply..."
-                                 value={replyForms[t.id] || ''}
-                                 onChange={(e) => setReplyForms({...replyForms, [t.id]: e.target.value})}
-                                 onKeyDown={(e) => e.key === 'Enter' && handleCreateReply(t.id)}
-                               />
-                               <button onClick={() => handleCreateReply(t.id)} className="px-4 bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-gray-900 font-semibold text-sm transition-colors">
-                                 Reply
-                               </button>
-                            </div>
-                          )}
-                       </div>
-                     )) : (
-                       <div className="text-center p-12 bg-white rounded-2xl border border-dashed border-gray-300">
-                          <MessageSquare className="mx-auto text-gray-300 mb-3" size={32} />
-                          <p className="text-gray-500 font-medium text-sm">No discussions yet. Be the first to start one!</p>
-                       </div>
-                     )}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* ─── Events Tab ────────────────────────────── */}
-              {activeTab === 'Events' && (
-                <motion.div
-                  key="events"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-6"
-                >
-                  <div className="flex items-center justify-between bg-white border border-gray-200 p-6 rounded-2xl shadow-sm mb-2">
-                     <div>
-                        <h4 className="text-lg font-semibold text-gray-900">Group Visits</h4>
-                        <p className="text-sm text-gray-500">Plan a visit with others or join an existing trip.</p>
-                     </div>
-                     {user && (
-                       <button onClick={() => setShowSchedule(true)} className="h-12 px-6 font-semibold bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors shadow-sm flex items-center gap-2">
-                          <Calendar size={18} /> Schedule Trip
-                       </button>
-                     )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {events.length > 0 ? events.map(e => (
-                      <div key={e._id} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                         <div>
-                            <div className="flex items-center justify-between mb-3">
-                               <span className={`px-2.5 py-1 text-xs font-semibold rounded-md ${e.visibility === 'open' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>{e.visibility === 'open' ? 'Open' : 'Invite Only'}</span>
-                               <span className="text-xs text-gray-500 font-medium flex items-center gap-1.5"><Users size={14}/> {e.currentParticipants || 0}/{e.maxParticipants}</span>
-                            </div>
-                            <h4 className="font-semibold text-gray-900 text-lg mb-1">{e.title}</h4>
-                            <p className="text-sm text-gray-600 mb-4">{e.description}</p>
-                            <div className="flex items-center gap-4 text-sm font-medium text-gray-700 mb-6 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-                               <div className="flex items-center gap-2"><Calendar size={16} className="text-gray-400" /> {new Date(e.scheduledDate).toLocaleDateString()}</div>
-                               <div className="flex items-center gap-2"><Clock size={16} className="text-gray-400" /> {e.time}</div>
-                            </div>
-                         </div>
-                         {user && (
-                           <button onClick={() => handleRSVP(e._id)} className="h-12 w-full font-semibold bg-white border border-gray-300 text-gray-900 rounded-xl hover:border-gray-900 transition-colors">
-                             Join Visit
-                           </button>
-                         )}
-                      </div>
-                    )) : (
-                      <div className="col-span-2 text-center py-12 rounded-2xl border border-dashed border-gray-300 bg-white">
-                         <p className="text-gray-500 font-medium">No upcoming events found.</p>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* ─── Sidebar Area ─── */}
-          <div className="lg:col-span-4" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div style={{ position: 'sticky', top: 'calc(var(--header-height) + 24px)', display: 'flex', flexDirection: 'column', gap: 20 }}>
-               
-               {/* Context Action Card */}
-               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                  <div className="flex items-baseline gap-2 mb-6">
-                     <span className="text-2xl font-bold text-gray-900">₹0</span>
-                     <span className="text-sm font-medium text-gray-500">Entrance</span>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                     <button onClick={() => setShowSchedule(true)} className="h-12 w-full bg-[#E51D53] hover:bg-[#D41648] text-white rounded-xl font-semibold text-base transition-colors active:scale-[0.98]">
-                       Reserve a Plan
-                     </button>
-                     <button onClick={() => setActiveTab('Community Feed')} className="h-12 w-full bg-white text-gray-900 border border-gray-300 rounded-xl font-semibold text-base hover:border-gray-900 hover:bg-gray-50 transition-colors active:scale-[0.98]">
-                       Ask the Community
-                     </button>
-                  </div>
-                  <p className="text-center text-sm text-gray-500 mt-4">You won't be charged yet</p>
-               </div>
-
-               {/* Ride Logistics Card */}
-               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                  <div className="flex items-center justify-between mb-5">
-                     <h3 className="font-semibold text-gray-900 text-lg">
-                        Ride Estimates
-                     </h3>
-                     <Car size={20} className="text-gray-400" />
-                  </div>
-                  
-                  <div className="space-y-3">
-                     {faresLoading ? (
-                        <>
-                          <div className="h-16 bg-gray-50 rounded-xl animate-pulse" />
-                          <div className="h-16 bg-gray-50 rounded-xl animate-pulse opacity-50" />
-                        </>
-                     ) : fares.length > 0 ? (
-                        fares.map((f, i) => {
-                           const prov = providerColors[f.provider] || { bg: 'bg-gray-800', text: 'text-white', label: f.provider };
-                           const isCheapest = i === 0;
-                           return (
-                             <div key={i} className="flex items-center py-3 border-b border-gray-50 last:border-0">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${prov.bg} ${prov.text} shadow-sm mr-4`}>
-                                   {prov.label === 'Uber' ? 'U' : prov.label === 'Ola' ? 'O' : prov.label === 'Rapido' ? 'R' : '!'}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                   <p className="text-[14px] font-bold text-gray-900 truncate">{f.provider}</p>
-                                   <p className="text-[12px] text-gray-500 font-medium">{f.estimatedMinutes} min • {f.distanceKm} km</p>
-                                </div>
-                                <div className="text-right ml-4">
-                                   <p className={`text-[16px] font-extrabold ${isCheapest ? 'text-emerald-600' : 'text-gray-900'}`}>
-                                      ₹{f.fare}
-                                   </p>
-                                </div>
-                             </div>
-                           );
-                        })
-                     ) : (
-                        <div className="text-center py-5 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-sm text-gray-500">
-                           Enable location to get ride estimates.
-                        </div>
-                     )}
-                  </div>
-                  <Link to="/map" className="block text-center text-[13px] font-semibold text-gray-900 underline mt-5 hover:text-gray-600">
-                     Compare all mobility options
-                  </Link>
-               </div>
-               
-               {/* Location / Safety Box */}
-               <div className="bg-white p-6 rounded-2xl border border-gray-200 flex gap-4">
-                  <div className="mt-1">
-                     <Award size={24} className="text-gray-900" />
-                  </div>
-                  <div>
-                     <h3 className="font-semibold text-gray-900 text-base mb-1">
-                        Community Verified
-                     </h3>
-                     <p className="text-sm text-gray-500 leading-relaxed">
-                        Every experience is reviewed dynamically. Content and tips reflect recent community feedback.
-                     </p>
-                  </div>
-               </div>
-            </div>
-          </div>
+        {/* The fact block, stamped onto the lower edge of the photographs */}
+        <div className="relative z-10 mt-6 md:-mt-14 md:mx-8">
+          <FactBlock place={place} size="full" />
         </div>
       </div>
 
-      {/* Schedule Visit Modal */}
-      {showSchedule && place && (
+      <div className="page-wrap mt-14 grid gap-12 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0">
+          <div role="tablist" aria-label={`About ${name}`} className="scrollbar-none flex gap-5 overflow-x-auto border-b border-rule-strong sm:gap-6">
+            {tabs.map((t, i) => (
+              <button
+                key={t.id}
+                id={`tab-${t.id}`}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                aria-controls={`panel-${t.id}`}
+                tabIndex={tab === t.id ? 0 : -1}
+                onClick={() => setTab(t.id)}
+                onKeyDown={(e) => onTabKey(e, i)}
+                className={`-mb-px shrink-0 whitespace-nowrap border-b-[3px] pb-3 pt-1 text-[1.05rem] font-semibold transition-colors ${
+                  tab === t.id ? 'border-madder text-iron' : 'border-transparent text-iron-3 hover:text-iron'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} tabIndex={0} className="pt-8 outline-none">
+            {tab === 'about' && <AboutPanel place={place} mapLink={mapLink} directions={directions} />}
+            {tab === 'reviews' && (
+              <ReviewsPanel
+                place={place}
+                reviews={reviews}
+                signedIn={Boolean(user)}
+                onSignIn={goSignIn}
+                onChanged={async () => {
+                  await Promise.all([loadReviews(), loadPlace()]);
+                }}
+              />
+            )}
+            {tab === 'discussion' && (
+              <DiscussionPanel placeId={place._id} threads={threads} signedIn={Boolean(user)} onSignIn={goSignIn} onChanged={loadThreads} />
+            )}
+            {tab === 'visits' && (
+              <VisitsPanel
+                events={events}
+                signedIn={Boolean(user)}
+                onSignIn={goSignIn}
+                onPlan={() => (user ? setShowSchedule(true) : goSignIn())}
+                onChanged={loadEvents}
+              />
+            )}
+          </div>
+        </div>
+
+        <aside className="flex flex-col gap-5 lg:sticky lg:top-[calc(var(--masthead-h)+32px)] lg:self-start">
+          <section className="rounded-[3px] border border-rule bg-paper p-5" aria-labelledby="getting-there">
+            <h2 id="getting-there" className="font-display text-[1.5rem] leading-tight text-iron">
+              Getting there
+            </h2>
+            <p className="mt-1.5 text-[0.98rem] text-iron-2">Estimated ride fares from where you are now.</p>
+
+            {fares.status === 'done' ? (
+              <FareList fares={fares.fares} />
+            ) : (
+              <>
+                {fares.status === 'error' && (
+                  <p className="mt-3 rounded-[3px] bg-madder-wash p-3 text-sm text-madder-deep" role="alert">
+                    {fares.message}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={compareFares}
+                  disabled={fares.status === 'locating' || fares.status === 'loading'}
+                  className="btn-ink mt-4 w-full"
+                >
+                  {fares.status === 'locating'
+                    ? 'Finding you…'
+                    : fares.status === 'loading'
+                      ? 'Comparing…'
+                      : user
+                        ? 'Compare Uber, Ola & Rapido'
+                        : 'Sign in to compare fares'}
+                </button>
+              </>
+            )}
+            {directions && (
+              <a href={directions} target="_blank" rel="noreferrer" className="ink-link mt-4 inline-flex items-center gap-1.5 text-[0.98rem]">
+                <Navigation size={15} aria-hidden="true" /> Directions in Google Maps
+              </a>
+            )}
+          </section>
+
+          <section className="on-dye rounded-[3px] bg-dye p-5 text-resist" aria-labelledby="plan-visit">
+            <h2 id="plan-visit" className="font-display text-[1.5rem] leading-tight">
+              Going with others?
+            </h2>
+            <p className="mt-1.5 text-[0.98rem] text-resist-dim">
+              Pick a date and time, set how many can join, and travelers headed here can sign up.
+            </p>
+            <button type="button" onClick={() => (user ? setShowSchedule(true) : goSignIn())} className="btn-ink mt-4 w-full">
+              <CalendarDays size={16} aria-hidden="true" />
+              Plan a group visit
+            </button>
+          </section>
+        </aside>
+      </div>
+
+      {lightbox !== null && photos.length > 0 && (
+        <Lightbox photos={photos} index={lightbox} name={name} onChange={setLightbox} onClose={() => setLightbox(null)} />
+      )}
+
+      {showSchedule && (
         <ScheduleVisit
           placeId={place._id}
-          placeName={place.name}
+          placeName={name}
           onClose={() => setShowSchedule(false)}
           onCreated={() => {
-             VisitService.getUpcoming(id!).then(setEvents).catch(console.error);
+            loadEvents();
+            setTab('visits');
           }}
         />
       )}
-    </motion.div>
+    </article>
   );
 };
 
-// SVG Icon Helper
-const CheckIcon = ({ size = 24 }: { size?: number }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="text-gray-900" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-   </svg>
-);
+/* ─── About ─────────────────────────────────────────────────────────── */
+
+function AboutPanel({ place, mapLink, directions }: { place: IPlace; mapLink?: string; directions?: string }) {
+  const paragraphs = plainText(place.description).split(/\n+/).filter(Boolean);
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="max-w-[58ch] space-y-4 text-[1.12rem] leading-[1.7] text-iron">
+        {paragraphs.map((p, i) => (
+          <p key={i}>{p}</p>
+        ))}
+      </div>
+
+      {place.tags?.length > 0 && (
+        <div>
+          <h3 className="print-label">Tagged</h3>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {place.tags.map((tag) => (
+              <li key={tag}>
+                <Link
+                  to={`/uploads?search=${encodeURIComponent(tag)}`}
+                  className="inline-flex h-9 items-center rounded-[3px] border-[1.5px] border-rule-strong px-3 text-[0.95rem] font-semibold text-iron-2 no-underline hover:border-iron hover:text-iron"
+                >
+                  {tag}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="border-t border-rule pt-6">
+        <h3 className="print-label">Address</h3>
+        <p className="mt-1 max-w-[60ch] text-[1.05rem] text-iron">{place.address}</p>
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+          {mapLink && (
+            <a href={mapLink} target="_blank" rel="noreferrer" className="ink-link">
+              View on Google Maps
+            </a>
+          )}
+          {directions && (
+            <a href={directions} target="_blank" rel="noreferrer" className="ink-link">
+              Get directions
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Reviews ───────────────────────────────────────────────────────── */
+
+/** Five stars, filled to the exact value: 4.5 prints four and a half, never five. */
+function Stars({ value, size = 16 }: { value: number; size?: number }) {
+  const label = `${Number.isInteger(value) ? value : value.toFixed(1)} out of 5`;
+  return (
+    <span className="inline-flex gap-0.5" role="img" aria-label={label}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const fill = Math.max(0, Math.min(1, value - (n - 1)));
+        return (
+          <span key={n} className="relative inline-block shrink-0" style={{ width: size, height: size }}>
+            <Star size={size} aria-hidden="true" className="absolute inset-0 text-rule-strong" />
+            {fill > 0 && (
+              <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                <Star size={size} aria-hidden="true" className="block max-w-none fill-turmeric text-turmeric" />
+              </span>
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function ReviewsPanel({
+  place,
+  reviews,
+  signedIn,
+  onSignIn,
+  onChanged,
+}: {
+  place: IPlace;
+  reviews: IReview[];
+  signedIn: boolean;
+  onSignIn: () => void;
+  onChanged: () => Promise<void>;
+}) {
+  const [rating, setRating] = useState(0);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const rated = hasRating(place);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!rating) return setError('Choose a rating from 1 to 5 stars.');
+    if (!text.trim()) return setError('Write a line or two about your visit.');
+    setBusy(true);
+    setError('');
+    try {
+      await ReviewService.create({ placeId: place._id, rating, text: text.trim() });
+      setRating(0);
+      setText('');
+      await onChanged();
+    } catch (err) {
+      setError(errorMessage(err, 'Your review could not be posted. Try again.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const vote = async (reviewId: string) => {
+    if (!signedIn) return onSignIn();
+    try {
+      await ReviewService.voteHelpful(reviewId);
+      await onChanged();
+    } catch {
+      /* the count simply stays as it was */
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-wrap items-end gap-x-5 gap-y-2">
+        {rated ? (
+          <>
+            <span className="font-display text-[3.4rem] leading-none text-iron">{place.averageRating.toFixed(1)}</span>
+            <div className="pb-1.5">
+              <Stars value={place.averageRating} size={20} />
+              <p className="mt-0.5 text-iron-2">from {plural(place.totalReviews, 'review')}</p>
+            </div>
+          </>
+        ) : (
+          <p className="font-display text-[1.8rem] leading-tight text-iron">No reviews yet.</p>
+        )}
+      </div>
+
+      {signedIn ? (
+        <form onSubmit={submit} className="rounded-[3px] border border-rule bg-paper p-5" noValidate>
+          <h3 className="font-display text-[1.35rem] text-iron">Write a review</h3>
+          <div role="radiogroup" aria-label="Your rating" className="mt-3 flex gap-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                role="radio"
+                aria-checked={rating === n}
+                aria-label={plural(n, 'star')}
+                onClick={() => setRating(n)}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-[3px] hover:bg-turmeric-wash"
+              >
+                <Star size={26} aria-hidden="true" className={n <= rating ? 'fill-turmeric text-turmeric' : 'text-rule-strong'} />
+              </button>
+            ))}
+          </div>
+          <label htmlFor="review-text" className="field-label mt-4">
+            Your visit
+          </label>
+          <textarea
+            id="review-text"
+            className="field"
+            rows={4}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="When did you go, what was worth it, what would you tell a friend?"
+          />
+          {error && (
+            <p className="mt-2 text-[0.95rem] font-semibold text-madder" role="alert">
+              {error}
+            </p>
+          )}
+          <button type="submit" disabled={busy} className="btn-ink mt-4">
+            {busy ? 'Posting…' : 'Post review'}
+          </button>
+        </form>
+      ) : (
+        <SignInPrompt onSignIn={onSignIn} action="write a review" />
+      )}
+
+      {reviews.length > 0 && (
+        <ul className="flex flex-col divide-y divide-rule border-y border-rule">
+          {reviews.map((r) => {
+            const author = typeof r.userId === 'object' && r.userId ? r.userId : null;
+            return (
+              <li key={r._id} className="py-5">
+                <div className="flex items-center gap-3">
+                  <Avatar name={author?.name || 'Traveler'} src={author?.avatar} size={38} />
+                  <div>
+                    <p className="font-semibold text-iron">
+                      {author?.name || 'A traveler'}
+                      {author?.isSample && <SampleTag />}
+                    </p>
+                    <p className="text-sm text-iron-3">
+                      {r.visitDate ? `Visited ${formatDate(r.visitDate, { month: 'long', year: 'numeric' })}` : formatDate(r.createdAt)}
+                    </p>
+                  </div>
+                  <span className="ml-auto">
+                    <Stars value={r.rating} />
+                  </span>
+                </div>
+                <p className="mt-3 max-w-[60ch] text-[1.05rem] leading-relaxed text-iron">{r.text}</p>
+                <button
+                  type="button"
+                  onClick={() => vote(r._id)}
+                  className="mt-3 inline-flex min-h-[36px] items-center gap-1.5 rounded-[3px] border border-rule-strong px-3 text-sm font-semibold text-iron-2 hover:border-iron hover:text-iron"
+                >
+                  <ThumbsUp size={14} aria-hidden="true" /> Helpful · {r.helpfulVotes || 0}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ─── Discussion ───────────────────────────────────────────────────── */
+
+function DiscussionPanel({
+  placeId,
+  threads,
+  signedIn,
+  onSignIn,
+  onChanged,
+}: {
+  placeId: string;
+  threads: IThread[];
+  signedIn: boolean;
+  onSignIn: () => void;
+  onChanged: () => Promise<void>;
+}) {
+  const [question, setQuestion] = useState('');
+  const [replies, setReplies] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const ask = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!question.trim()) return;
+    setBusy(true);
+    setError('');
+    try {
+      await ThreadService.createThread({ placeId, content: question.trim() });
+      setQuestion('');
+      await onChanged();
+    } catch (err) {
+      setError(errorMessage(err, 'Your post could not be published.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reply = async (threadId: string) => {
+    const content = replies[threadId]?.trim();
+    if (!content) return;
+    try {
+      await ThreadService.createReply({ threadId, content });
+      setReplies((r) => ({ ...r, [threadId]: '' }));
+      await onChanged();
+    } catch (err) {
+      setError(errorMessage(err, 'Your reply could not be posted.'));
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      {signedIn ? (
+        <form onSubmit={ask} className="flex flex-col gap-2 sm:flex-row">
+          <label htmlFor="thread-text" className="sr-only">
+            Ask or share something about this place
+          </label>
+          <input
+            id="thread-text"
+            className="field flex-1"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Ask a question or share a tip"
+          />
+          <button type="submit" disabled={busy || !question.trim()} className="btn-ink">
+            <Send size={16} aria-hidden="true" /> Post
+          </button>
+        </form>
+      ) : (
+        <SignInPrompt onSignIn={onSignIn} action="ask a question" />
+      )}
+      {error && (
+        <p className="font-semibold text-madder" role="alert">
+          {error}
+        </p>
+      )}
+
+      {threads.length === 0 ? (
+        <p className="flex items-center gap-2 text-[1.05rem] text-iron-2">
+          <MessageSquare size={18} aria-hidden="true" /> No questions yet. Ask the people who have been.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-4">
+          {threads.map((t) => (
+            <li key={t.id} className="rounded-[3px] border border-rule bg-paper p-5">
+              <div className="flex items-center gap-3">
+                <Avatar name={t.userName} size={34} />
+                <p className="flex flex-wrap items-center gap-x-2 font-semibold text-iron">
+                  <span>{t.userName}</span>
+                  {t.userIsSample && <SampleTag inline={false} />}
+                  <time dateTime={t.createdAt} className="whitespace-nowrap font-normal text-iron-3">
+                    {formatDate(t.createdAt)}
+                  </time>
+                </p>
+              </div>
+              <p className="mt-3 text-[1.05rem] leading-relaxed text-iron">{t.content}</p>
+              {t.replies?.length > 0 && (
+                <ul className="mt-4 flex flex-col gap-3 border-l-0 pl-0">
+                  {t.replies.map((rep) => (
+                    <li key={rep.id} className="ml-4 rounded-[3px] bg-cotton p-3.5 sm:ml-10">
+                      <p className="flex flex-wrap items-center gap-x-2 text-sm font-semibold text-iron">
+                        <span>{rep.userName}</span>
+                        {rep.userIsSample && <SampleTag inline={false} />}
+                        <time dateTime={rep.createdAt} className="whitespace-nowrap font-normal text-iron-3">
+                          {formatDate(rep.createdAt)}
+                        </time>
+                      </p>
+                      <p className="mt-1 text-[1rem] text-iron">{rep.content}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {signedIn && (
+                <form
+                  className="mt-4 flex gap-2 sm:ml-10"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    reply(t.id);
+                  }}
+                >
+                  <label htmlFor={`reply-${t.id}`} className="sr-only">
+                    Reply to {t.userName}
+                  </label>
+                  <input
+                    id={`reply-${t.id}`}
+                    className="field min-h-[42px] flex-1 py-2"
+                    value={replies[t.id] || ''}
+                    onChange={(e) => setReplies((r) => ({ ...r, [t.id]: e.target.value }))}
+                    placeholder="Reply"
+                  />
+                  <button type="submit" className="btn-line min-h-[42px]" disabled={!replies[t.id]?.trim()}>
+                    Reply
+                  </button>
+                </form>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ─── Group visits ─────────────────────────────────────────────────── */
+
+function VisitsPanel({
+  events,
+  signedIn,
+  onSignIn,
+  onPlan,
+  onChanged,
+}: {
+  events: IVisitEvent[];
+  signedIn: boolean;
+  onSignIn: () => void;
+  onPlan: () => void;
+  onChanged: () => Promise<void>;
+}) {
+  const [joined, setJoined] = useState<Set<string>>(new Set());
+  const [error, setError] = useState('');
+
+  const join = async (eventId: string) => {
+    if (!signedIn) return onSignIn();
+    setError('');
+    try {
+      await VisitService.rsvp(eventId, 'going');
+      setJoined((s) => new Set(s).add(eventId));
+      await onChanged();
+    } catch (err) {
+      setError(errorMessage(err, 'You could not be added to this visit.'));
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <p className="max-w-[52ch] text-[1.05rem] text-iron-2">Upcoming visits travelers have planned here. Join one, or plan your own.</p>
+        <button type="button" onClick={onPlan} className="btn-line">
+          <CalendarDays size={16} aria-hidden="true" /> Plan a group visit
+        </button>
+      </div>
+      {error && (
+        <p className="font-semibold text-madder" role="alert">
+          {error}
+        </p>
+      )}
+      {events.length === 0 ? (
+        <p className="rounded-[3px] border border-dashed border-rule-strong p-6 text-iron-2">No visits planned here yet.</p>
+      ) : (
+        <ul className="grid gap-4 md:grid-cols-2">
+          {events.map((ev) => {
+            const going = ev.currentParticipants ?? 0;
+            const full = going >= ev.maxParticipants;
+            const date = new Date(ev.scheduledDate);
+            const host = typeof ev.creatorId === 'object' ? ev.creatorId : null;
+            return (
+              <li key={ev._id} className="relative flex flex-col rounded-[3px] border border-rule bg-paper p-5">
+                <div className="flex gap-4">
+                  <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-[3px] bg-dye py-2 text-resist">
+                    <span className="font-display text-[1.9rem] leading-none">{date.getDate()}</span>
+                    <span className="text-xs font-bold uppercase tracking-[0.1em] text-resist-dim">
+                      {date.toLocaleDateString('en-IN', { month: 'short' })}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-display text-[1.35rem] leading-tight text-iron">{ev.title}</h3>
+                    <p className="tabular mt-1 flex flex-wrap gap-x-3 text-sm text-iron-2">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock size={14} aria-hidden="true" /> {formatDate(ev.scheduledDate, { weekday: 'short', day: 'numeric', month: 'short' })}, {ev.time}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Users size={14} aria-hidden="true" /> {going} of {ev.maxParticipants} going
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                {ev.description && <p className="mt-3 text-[1rem] text-iron">{ev.description}</p>}
+                {host && (
+                  <p className="mt-2 text-sm text-iron-3">
+                    Planned by {host.name}
+                    {host.isSample && <SampleTag />}
+                  </p>
+                )}
+                <div className="mt-4 flex items-center gap-3 pt-1">
+                  {joined.has(ev._id) ? (
+                    <Stamp rotate={-4}>
+                      You're going
+                    </Stamp>
+                  ) : (
+                    <button type="button" onClick={() => join(ev._id)} disabled={full} className="btn-ink min-h-[40px] py-2">
+                      {full ? 'Full' : 'Join this visit'}
+                    </button>
+                  )}
+                  {ev.visibility === 'invite-only' && <span className="text-sm font-semibold text-iron-3">Invite only</span>}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ─── Shared bits ──────────────────────────────────────────────────── */
+
+function SignInPrompt({ onSignIn, action }: { onSignIn: () => void; action: string }) {
+  return (
+    <p className="rounded-[3px] border border-dashed border-rule-strong p-5 text-[1.02rem] text-iron-2">
+      <button type="button" onClick={onSignIn} className="ink-link">
+        Sign in
+      </button>{' '}
+      to {action}.
+    </p>
+  );
+}
+
+function FareList({ fares }: { fares: IFareEstimate[] }) {
+  const cheapest = Math.min(...fares.map((f) => f.fare));
+  return (
+    <div className="mt-4">
+      <ul className="divide-y divide-rule border-y border-rule">
+        {[...fares]
+          .sort((a, b) => a.fare - b.fare)
+          .map((f) => (
+            <li key={f.provider} className="flex items-center justify-between gap-3 py-3">
+              <div>
+                <p className="font-bold text-iron">{f.provider}</p>
+                <p className="tabular text-sm text-iron-2">
+                  {f.estimatedMinutes} min · {f.distanceKm} km
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {f.fare === cheapest && (
+                  <Stamp rotate={-6}>
+                    Cheapest
+                  </Stamp>
+                )}
+                <span className="tabular text-lg font-extrabold text-iron">₹{Math.round(f.fare)}</span>
+              </div>
+            </li>
+          ))}
+      </ul>
+      <p className="mt-2 text-sm text-iron-3">Estimates, not quotes — surge and tolls can change the fare.</p>
+    </div>
+  );
+}
+
+function Lightbox({
+  photos,
+  index,
+  name,
+  onChange,
+  onClose,
+}: {
+  photos: string[];
+  index: number;
+  name: string;
+  onChange: (i: number) => void;
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const prev = useCallback(() => onChange((index - 1 + photos.length) % photos.length), [index, photos.length, onChange]);
+  const next = useCallback(() => onChange((index + 1) % photos.length), [index, photos.length, onChange]);
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = overflow;
+      opener?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'ArrowRight') next();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, prev, next]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Photos of ${name}`}
+      className="on-dye fixed inset-0 z-50 flex flex-col bg-dye-deep/95 text-resist"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="flex items-center justify-between p-4">
+        <p className="tabular font-semibold">
+          {name} · {index + 1} / {photos.length}
+        </p>
+        <button
+          ref={closeRef}
+          type="button"
+          onClick={onClose}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-[3px] hover:bg-dye-raised"
+          aria-label="Close photos"
+        >
+          <X size={24} aria-hidden="true" />
+        </button>
+      </div>
+      <div className="relative flex min-h-0 flex-1 items-center justify-center px-4 pb-8" onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <img src={photos[index]} alt={`${name}, photo ${index + 1}`} className="max-h-full max-w-full rounded-[3px] object-contain" />
+        {photos.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={prev}
+              className="absolute left-3 top-1/2 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-[3px] bg-dye/80 hover:bg-dye-raised"
+              aria-label="Previous photo"
+            >
+              <ChevronLeft size={26} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={next}
+              className="absolute right-3 top-1/2 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-[3px] bg-dye/80 hover:bg-dye-raised"
+              aria-label="Next photo"
+            >
+              <ChevronRight size={26} aria-hidden="true" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Remount per place so every piece of page state starts fresh. */
+const PlaceDetails = () => {
+  const { id = '' } = useParams();
+  return <PlaceDetailsView key={id} id={id} />;
+};
 
 export default PlaceDetails;

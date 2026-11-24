@@ -1,61 +1,51 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, MapPin, Eye, EyeOff, ArrowRight } from 'lucide-react';
-import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
+import { useState, type FormEvent } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
+import type { CredentialResponse } from '@react-oauth/google';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { AuthTravelShell } from '../components/auth/AuthTravelShell';
+import { GoogleButton } from '../components/auth/GoogleButton';
+import { errorMessage } from '../lib/format';
 
 const RegisterPage = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    city: ''
-  });
+  const [form, setForm] = useState({ name: '', email: '', password: '', city: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: string } | null)?.from || '/';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!agreeTerms) {
-      setError('Please agree to the terms and privacy policy');
+    if (form.password.length < 6) {
+      setError('Choose a password of at least 6 characters.');
       return;
     }
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/auth/register', formData);
+      const res = await api.post('/auth/register', form);
       login(res.data.token, res.data.user);
-      navigate('/');
-    } catch (err: unknown) {
-      const message =
-        err && typeof err === 'object' && 'response' in err
-          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-          : undefined;
-      setError(message || 'Registration failed. Please try again.');
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(errorMessage(err, 'Your account could not be created. Try again.'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSuccess = async (response: CredentialResponse) => {
+  const handleGoogle = async (response: CredentialResponse) => {
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      setError('');
       const res = await api.post('/auth/google', { token: response.credential });
       login(res.data.token, res.data.user);
-      navigate('/');
-    } catch (err: unknown) {
-      const message =
-        err && typeof err === 'object' && 'response' in err
-          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-          : undefined;
-      setError(message || 'Google sign-up failed. Please try again.');
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(errorMessage(err, 'Google sign-up failed. Try again, or use the form.'));
     } finally {
       setLoading(false);
     }
@@ -63,171 +53,83 @@ const RegisterPage = () => {
 
   return (
     <AuthTravelShell>
-      <div className="auth-travel-card">
-        <div className="mb-10">
-          <Link to="/" className="inline-block mb-8 text-[var(--primary)] font-bold tracking-tight text-xl hover:opacity-80 transition-opacity">
-            Tourism
-          </Link>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-3">
-            Create Account
-          </h1>
-          <p className="text-[16px] font-medium text-slate-500">
-            Join our community of world travelers.
-          </p>
+      <h1 className="font-display text-[2.6rem] leading-none text-iron">Join</h1>
+      <p className="mt-3 text-[1.08rem] text-iron-2">Save places, write reviews, and plan visits with other travelers.</p>
+
+      {error && (
+        <p role="alert" className="mt-6 rounded-[3px] border-[1.5px] border-madder bg-madder-wash p-3.5 font-semibold text-madder-deep">
+          {error}
+        </p>
+      )}
+
+      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label htmlFor="reg-name" className="field-label">
+              Name
+            </label>
+            <input id="reg-name" autoComplete="name" required className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div>
+            <label htmlFor="reg-city" className="field-label">
+              Home city <span className="font-normal text-iron-3">(optional)</span>
+            </label>
+            <input id="reg-city" autoComplete="address-level2" className="field" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          </div>
         </div>
-
-        {error && (
-          <div
-            role="alert"
-            className="mb-8 flex items-center gap-3 rounded-xl bg-orange-50 px-5 py-4 text-sm font-semibold text-orange-800 border border-orange-100"
-          >
-            <div className="h-2 w-2 shrink-0 rounded-full bg-orange-500" />
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-2.5">
-              <label htmlFor="reg-name" className="px-1 text-[13px] font-bold text-slate-700">
-                Full Name
-              </label>
-              <div className="relative group">
-                <User className="auth-travel-input-icon group-focus-within:text-blue-600 transition-colors" size={19} />
-                <input
-                  id="reg-name"
-                  type="text"
-                  autoComplete="name"
-                  required
-                  className="auth-travel-input"
-                  placeholder="John Doe"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              <label htmlFor="reg-city" className="px-1 text-[13px] font-bold text-slate-700">
-                Current City
-              </label>
-              <div className="relative group">
-                <MapPin className="auth-travel-input-icon group-focus-within:text-blue-600 transition-colors" size={19} />
-                <input
-                  id="reg-city"
-                  type="text"
-                  autoComplete="address-level2"
-                  required
-                  className="auth-travel-input"
-                  placeholder="Paris, France"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2.5">
-            <label htmlFor="reg-email" className="px-1 text-[13px] font-bold text-slate-700">
-              Email Address
-            </label>
-            <div className="relative group">
-              <Mail className="auth-travel-input-icon group-focus-within:text-blue-600 transition-colors" size={20} />
-              <input
-                id="reg-email"
-                type="email"
-                autoComplete="email"
-                required
-                className="auth-travel-input"
-                placeholder="name@example.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2.5">
-            <label htmlFor="reg-password" className="px-1 text-[13px] font-bold text-slate-700">
-              Password
-            </label>
-            <div className="relative group">
-              <Lock className="auth-travel-input-icon group-focus-within:text-blue-600 transition-colors" size={20} />
-              <input
-                id="reg-password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                required
-                className="auth-travel-input pr-12"
-                placeholder="Choose a password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 px-1 py-1">
+        <div>
+          <label htmlFor="reg-email" className="field-label">
+            Email
+          </label>
+          <input id="reg-email" type="email" autoComplete="email" required className="field" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+        </div>
+        <div>
+          <label htmlFor="reg-password" className="field-label">
+            Password
+          </label>
+          <div className="relative">
             <input
-              id="agree"
-              type="checkbox"
-              checked={agreeTerms}
-              onChange={(e) => setAgreeTerms(e.target.checked)}
-              className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-all"
+              id="reg-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              required
+              minLength={6}
+              className="field pr-12"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              aria-describedby="reg-password-hint"
             />
-            <label htmlFor="agree" className="cursor-pointer text-left text-[14px] font-medium leading-relaxed text-slate-500 select-none">
-              I agree to the <span className="text-blue-600 font-bold hover:underline">Terms</span> and <span className="text-blue-600 font-bold hover:underline">Privacy Policy</span>.
-            </label>
-          </div>
-
-          <div className="mt-2">
             <button
-              type="submit"
-              disabled={loading || !agreeTerms}
-              className="auth-travel-btn disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98]"
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute right-1 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-[3px] text-iron-2 hover:text-iron"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
             >
-              {loading ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <div className="flex items-center justify-center gap-2">
-                  <span>Create Account</span>
-                  <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
-                </div>
-              )}
+              {showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
             </button>
           </div>
-        </form>
-
-        <div className="auth-divider">OR</div>
-
-        <div className="flex justify-center w-full">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError('Google sign-up was unsuccessful.')}
-            shape="rectangular"
-            theme="outline"
-            size="large"
-            text="signup_with"
-            width="100%"
-          />
-        </div>
-
-        <div className="mt-10 pt-8 text-center sm:text-left">
-          <p className="text-[15px] text-slate-500 font-medium leading-relaxed">
-            Already have an account?{' '}
-            <Link to="/login" className="text-blue-600 font-bold hover:text-blue-700 transition-colors inline-flex items-center gap-1 group">
-              Sign in here
-              <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </Link>
+          <p id="reg-password-hint" className="mt-1.5 text-[0.95rem] text-iron-3">
+            At least 6 characters.
           </p>
         </div>
-      </div>
+        <button type="submit" disabled={loading} className="btn-ink mt-1 h-12 w-full text-base">
+          {loading ? 'Creating your account…' : 'Create account'}
+        </button>
+      </form>
+
+      <GoogleButton
+        text="signup_with"
+        onCredential={handleGoogle}
+        onError={() => setError('Google sign-up could not start. Use the form instead.')}
+      />
+
+      <p className="mt-8 border-t border-rule pt-6 text-[1.02rem] text-iron-2">
+        Already have an account?{' '}
+        <Link to="/login" state={location.state} className="ink-link">
+          Sign in
+        </Link>
+      </p>
     </AuthTravelShell>
   );
 };

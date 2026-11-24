@@ -1,106 +1,69 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Globe, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { BlockMark, FringeBand, LatticeBand } from '../print/Print';
 
-/**
- * Global Footer component with CTA.
- * Adapted from the previous home page CTA section.
- */
+/** The printed border that closes every page. */
 const Footer = () => {
   const { user } = useAuth();
-  
+  const year = new Date().getFullYear();
+
   return (
-    <footer style={{
-      position: 'relative', overflow: 'hidden',
-      background: '#0f172a', borderRadius: '40px 40px 0 0',
-      margin: '0',
-    }}>
-      {/* Animated orbs */}
-      <motion.div
-        animate={{ x: [0, 50, 0], y: [0, -30, 0] }}
-        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-        style={{
-          position: 'absolute', top: '-15%', right: '-8%', width: 500, height: 500, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(99,102,241,0.3) 0%, transparent 70%)',
-        }}
-      />
-      <motion.div
-        animate={{ x: [0, -35, 0], y: [0, 45, 0] }}
-        transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
-        style={{
-          position: 'absolute', bottom: '-10%', left: '-5%', width: 400, height: 400, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(20,184,166,0.25) 0%, transparent 70%)',
-        }}
-      />
-
-      <div className="container-custom" style={{
-        position: 'relative', zIndex: 1,
-        padding: '5rem 1.5rem', textAlign: 'center',
-        maxWidth: 700, margin: '0 auto',
-      }}>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: 56, height: 56, borderRadius: 16, marginBottom: 24,
-          background: 'rgba(99,102,241,0.15)',
-        }}>
-          <Globe size={26} style={{ color: '#818cf8' }} />
-        </div>
-
-        <h2 className="font-poppins" style={{
-          fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)', fontWeight: 700,
-          color: '#fff', marginBottom: 14, lineHeight: 1.2,
-        }}>
-          Ready to explore with us?
-        </h2>
-        <p style={{
-          fontSize: 15, color: 'rgba(255,255,255,0.45)', marginBottom: 32,
-          maxWidth: 440, margin: '0 auto 32px', lineHeight: 1.7, fontWeight: 500,
-        }}>
-          Join 10,000+ explorers and help us map the world's most authentic travel experiences.
-        </p>
-
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' as const }}>
-          <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-            <Link
-              to="/register"
-              className="no-underline"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                padding: '14px 32px', borderRadius: 14,
-                background: '#fff', color: '#0f172a',
-                fontSize: 14, fontWeight: 700,
-                boxShadow: '0 8px 24px -4px rgba(255,255,255,0.15)',
-              }}
-            >
-              Start Exploring <ArrowRight size={16} />
+    <footer className="on-dye mt-auto">
+      <FringeBand edge="top" />
+      <div className="bg-dye text-resist">
+        <div className="page-wrap grid gap-10 py-12 md:grid-cols-[1.4fr_1fr_1fr] md:py-14">
+          <div className="max-w-sm">
+            <Link to="/" className="inline-flex items-center gap-2.5 text-resist no-underline">
+              <BlockMark size={30} />
+              <span className="font-display text-[1.45rem] leading-none">Travel Explorer</span>
             </Link>
-          </motion.div>
-          
-          {/* Only show Sign In if user is not logged in */}
-          {!user && (
-            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              <Link
-                to="/login"
-                className="no-underline"
-                style={{
-                  display: 'inline-flex', alignItems: 'center',
-                  padding: '14px 32px', borderRadius: 14,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1.5px solid rgba(255,255,255,0.1)',
-                  color: 'rgba(255,255,255,0.7)',
-                  fontSize: 14, fontWeight: 600,
-                  backdropFilter: 'blur(8px)',
-                }}
-              >
-                Sign In
-              </Link>
-            </motion.div>
-          )}
+            <p className="mt-4 text-[1.02rem] leading-relaxed text-resist-dim">
+              Places across India, shared by people who went — each with what it costs, when it's open and how
+              long to stay.
+            </p>
+          </div>
+
+          <nav aria-label="Explore">
+            <h2 className="font-display text-xl text-resist">Explore</h2>
+            <ul className="mt-3 space-y-1.5">
+              <FooterLink to="/">Discover</FooterLink>
+              <FooterLink to="/uploads">All places</FooterLink>
+              <FooterLink to="/map">Map</FooterLink>
+            </ul>
+          </nav>
+
+          <nav aria-label="Contribute">
+            <h2 className="font-display text-xl text-resist">Contribute</h2>
+            <ul className="mt-3 space-y-1.5">
+              <FooterLink to="/add-place">Share a place</FooterLink>
+              {user ? (
+                <FooterLink to="/profile">Your saved places</FooterLink>
+              ) : (
+                <>
+                  <FooterLink to="/register">Join</FooterLink>
+                  <FooterLink to="/login">Sign in</FooterLink>
+                </>
+              )}
+            </ul>
+          </nav>
+        </div>
+        <LatticeBand />
+        <div className="page-wrap py-5 text-sm text-resist-dim">
+          © {year} Travel Explorer · No paid listings: what a place costs and how it rates comes from the people who use it.
         </div>
       </div>
     </footer>
   );
 };
+
+function FooterLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <li>
+      <Link to={to} className="text-[1.02rem] text-resist-dim no-underline transition-colors hover:text-resist hover:underline">
+        {children}
+      </Link>
+    </li>
+  );
+}
 
 export default Footer;

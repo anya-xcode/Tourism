@@ -1,10 +1,13 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import React, { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect, type ReactNode } from 'react';
+import { MotionConfig } from 'framer-motion';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SavedPlacesProvider } from './context/SavedPlacesContext';
+import { BlockMark } from './components/print/Print';
 
-// Dynamic imports for code splitting
+// Route-level code splitting
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
@@ -13,41 +16,48 @@ const ReelsFeed = lazy(() => import('./pages/ReelsFeed'));
 const ExploreMap = lazy(() => import('./pages/ExploreMap'));
 const AddPlace = lazy(() => import('./pages/AddPlace'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 const PageLoader = () => (
-  <div className="flex h-[70vh] items-center justify-center">
-    <div className="text-center">
-      <div className="inline-flex items-center justify-center w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4" />
-      <p className="text-gray-400 font-medium text-sm animate-pulse tracking-wide">Loading Experience...</p>
-    </div>
+  <div className="flex min-h-[60vh] items-center justify-center" role="status">
+    <BlockMark size={40} className="animate-pulse" />
+    <span className="sr-only">Loading</span>
   </div>
 );
 
 const AUTH_FULLBLEED = ['/login', '/register'];
+const NO_FOOTER = ['/map'];
 
-const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+const PrivateRoute = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
-  if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-[var(--background)]">
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] rounded-full mb-4 shadow-lg animate-pulse">
-          <span className="text-2xl">🌍</span>
-        </div>
-        <p className="gradient-text font-jakarta font-bold text-xl animate-pulse">Exploring Global Data...</p>
-      </div>
-    </div>
-  );
-  return user ? <>{children}</> : <Navigate to="/login" />;
+  const location = useLocation();
+  if (loading) return <PageLoader />;
+  return user ? <>{children}</> : <Navigate to="/login" state={{ from: location.pathname }} replace />;
 };
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 function AppRoutes() {
   const { pathname } = useLocation();
-  const authFullBleed = AUTH_FULLBLEED.includes(pathname);
+  const fullBleed = AUTH_FULLBLEED.includes(pathname);
 
   return (
-    <div className="app-container min-h-screen bg-[var(--background)] text-[var(--text)] flex flex-col">
-      {!authFullBleed && <Navbar />}
-      <main className="flex-1" style={{ paddingTop: authFullBleed ? 0 : 'calc(var(--header-height) + 12px)' }}>
+    <div className="flex min-h-screen flex-col bg-cotton text-iron">
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-[3px] bg-madder px-4 py-2 font-bold text-resist focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Skip to content
+      </a>
+      <ScrollToTop />
+      {!fullBleed && <Navbar />}
+      <main id="main" className="flex flex-1 flex-col">
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -57,26 +67,27 @@ function AppRoutes() {
             <Route path="/uploads" element={<ReelsFeed />} />
             <Route path="/map" element={<ExploreMap />} />
             <Route path="/add-place" element={<PrivateRoute><AddPlace /></PrivateRoute>} />
-            <Route path="/profile" element={
-              <PrivateRoute>
-                <ProfilePage />
-              </PrivateRoute>
-            } />
+            <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </main>
-      {!authFullBleed && <Footer />}
+      {!fullBleed && !NO_FOOTER.includes(pathname) && <Footer />}
     </div>
   );
 }
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </Router>
+    <MotionConfig reducedMotion="user">
+      <Router>
+        <AuthProvider>
+          <SavedPlacesProvider>
+            <AppRoutes />
+          </SavedPlacesProvider>
+        </AuthProvider>
+      </Router>
+    </MotionConfig>
   );
 }
 

@@ -17,7 +17,7 @@ export class ReviewService {
   }
 
   async getReviewsByPlace(placeId: string): Promise<IReview[]> {
-    return Review.find({ placeId }).populate('userId', 'name avatar').sort('-createdAt');
+    return Review.find({ placeId }).populate('userId', 'name avatar isSample').sort('-createdAt');
   }
 
   async voteHelpful(reviewId: string, userId: string): Promise<IReview> {

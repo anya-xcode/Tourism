@@ -1,588 +1,365 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, Plus, X, Image as ImageIcon, MapPin, Tag, Clock, DollarSign, FileText, Compass } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ImagePlus, LocateFixed, X } from 'lucide-react';
 import { PlaceService } from '../services/PlaceService';
 import { MediaService } from '../services/MediaService';
-import { PlaceCategory, BudgetRange } from '../types';
+import { BudgetRange, PlaceCategory } from '../types';
+import { InkChip } from '../components/print/InkChip';
+import { FactBlock } from '../components/print/FactBlock';
+import { FringeBand, LatticeBand, LatticeField } from '../components/print/Print';
+import { errorMessage } from '../lib/format';
 
-const sections = [
-  { id: 'basics', label: 'Basics', icon: <FileText size={14} /> },
-  { id: 'location', label: 'Location', icon: <MapPin size={14} /> },
-  { id: 'photos', label: 'Photos', icon: <ImageIcon size={14} /> },
-  { id: 'details', label: 'Details', icon: <Tag size={14} /> },
-];
+type Errors = Partial<Record<'name' | 'description' | 'city' | 'address' | 'coords' | 'photos', string>>;
 
-const inputStyle: React.CSSProperties = {
-  width: '100%', background: '#fff', border: '1.5px solid #e5e7eb',
-  borderRadius: 12, padding: '12px 16px', fontSize: 14, fontWeight: 500,
-  outline: 'none', color: '#0f172a', transition: 'all 0.2s',
-  fontFamily: 'Inter, sans-serif',
-};
-
-const labelStyle: React.CSSProperties = {
-  display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 8,
-};
-
-const SectionCard = ({ children, style, ...props }: React.HTMLAttributes<HTMLDivElement> & { style?: React.CSSProperties }) => (
-  <div
-    {...props}
-    style={{
-      background: '#fff', borderRadius: 20, border: '1.5px solid #f1f5f9',
-      padding: '28px 28px', display: 'flex', flexDirection: 'column', gap: 20,
-      boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)',
-      transition: 'box-shadow 0.3s',
-      ...style,
-    }}
-    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 20px -4px rgba(0,0,0,0.06)'; }}
-    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 4px 0 rgba(0,0,0,0.03)'; }}
-  >
-    {children}
-  </div>
-);
-
-const ImagePreviewItem = ({ url }: { url: string }) => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      {loading && !error && (
-        <div style={{
-          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: '#f8fafc',
-        }}>
-          <div className="animate-pulse" style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid #e2e8f0', borderTopColor: '#94a3b8' }} />
-        </div>
-      )}
-      {error && (
-        <div style={{
-          position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          background: '#fef2f2', gap: 4, padding: 8, textAlign: 'center'
-        }}>
-          <X size={14} style={{ color: '#ef4444' }} />
-          <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444' }}>FAIL</span>
-        </div>
-      )}
-      <img
-        src={url}
-        style={{
-          width: '100%', height: '100%', objectFit: 'cover',
-          display: 'block', opacity: loading ? 0 : 1, transition: 'opacity 0.3s'
-        }}
-        onLoad={() => setLoading(false)}
-        onError={() => { setLoading(false); setError(true); }}
-        alt="Preview"
-      />
-    </div>
-  );
-};
+const isImageUrl = (s: string) => /^https?:\/\/\S+$/i.test(s.trim());
 
 const AddPlace = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const [activeSection, setActiveSection] = useState('basics');
-  const formRef = useRef<HTMLFormElement>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [errors, setErrors] = useState<Errors>({});
+  const [files, setFiles] = useState<{ file: File; preview: string }[]>([]);
+  const [photoLinks, setPhotoLinks] = useState('');
+  const [locating, setLocating] = useState(false);
+  const previewsRef = useRef<string[]>([]);
 
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     name: '',
     description: '',
     city: '',
     address: '',
-    category: PlaceCategory.NATURE,
-    budgetRange: BudgetRange.MODERATE,
+    latitude: '',
+    longitude: '',
+    category: PlaceCategory.HERITAGE as PlaceCategory,
+    budgetRange: BudgetRange.FREE as BudgetRange,
+    operatingHours: '',
     suggestedDurationMinutes: 60,
     tags: '',
-    latitude: '',
-    longitude: ''
   });
 
-  // Scrollspy
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => setForm((f) => ({ ...f, [key]: value }));
+
+  // Release object URLs on unmount
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
-      { rootMargin: '-30% 0px -60% 0px' }
-    );
-    sections.forEach(s => {
-      const el = document.getElementById(s.id);
-      if (el) observer.observe(el);
+    previewsRef.current = files.map((f) => f.preview);
+  }, [files]);
+  useEffect(() => () => previewsRef.current.forEach((u) => URL.revokeObjectURL(u)), []);
+
+  const addFiles = (e: ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
+    setFiles((cur) => [...cur, ...picked.map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
+    e.target.value = '';
+  };
+
+  const removeFile = (i: number) =>
+    setFiles((cur) => {
+      URL.revokeObjectURL(cur[i].preview);
+      return cur.filter((_, idx) => idx !== i);
     });
-    return () => observer.disconnect();
-  }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      const heicFiles = selectedFiles.filter(file => file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif'));
-      
-      if (heicFiles.length > 0) {
-        // We don't block it because the backend now handles conversion, but we warn them.
-        setError('HEIC format detected. Local preview not available, but it will be automatically converted to JPG after you publish.');
-      } else {
-        setError('');
-      }
-
-      setFiles(prev => [...prev, ...selectedFiles]);
-      const newPreviews = selectedFiles.map(file => URL.createObjectURL(file));
-      setPreviews(prev => [...prev, ...newPreviews]);
-    }
-  };
-
-  // Memory management for previews on unmount
-  useEffect(() => {
-    return () => {
-      previews.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, []); // Only on unmount. removeFile handles individual removals.
-
-  const removeFile = (index: number) => {
-    const newFiles = [...files];
-    newFiles.splice(index, 1);
-    setFiles(newFiles);
-    const newPreviews = [...previews];
-    if (newPreviews[index]) {
-      URL.revokeObjectURL(newPreviews[index]);
-    }
-    newPreviews.splice(index, 1);
-    setPreviews(newPreviews);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (files.length === 0) {
-      setError('Please upload at least one photo.');
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      setErrors((e) => ({ ...e, coords: 'Your browser does not share location. Enter the coordinates instead.' }));
       return;
     }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm((f) => ({ ...f, latitude: pos.coords.latitude.toFixed(5), longitude: pos.coords.longitude.toFixed(5) }));
+        setErrors((e) => ({ ...e, coords: undefined }));
+        setLocating(false);
+      },
+      () => {
+        setErrors((e) => ({ ...e, coords: 'Location access was blocked. Enter the coordinates instead.' }));
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
 
-    // Auto-assigning default coordinates since precise manual entry is removed
-    const lat = 18.5204; // Default latitude (e.g., Pune)
-    const lng = 73.8567; // Default longitude
+  const links = photoLinks
+    .split(/\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-    setLoading(true);
-    setError('');
-    
+  const validate = (): Errors => {
+    const e: Errors = {};
+    if (!form.name.trim()) e.name = 'Give the place a name.';
+    if (form.description.trim().length < 20) e.description = 'Write at least a sentence or two (20+ characters).';
+    if (!form.city.trim()) e.city = 'Which city or town is it in?';
+    if (!form.address.trim()) e.address = 'Add an address or landmark people can find.';
+    const lat = Number(form.latitude);
+    const lng = Number(form.longitude);
+    if (form.latitude === '' || form.longitude === '' || Number.isNaN(lat) || Number.isNaN(lng)) {
+      e.coords = 'Add latitude and longitude, or use your current location.';
+    } else if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      e.coords = 'Latitude must be between -90 and 90, longitude between -180 and 180.';
+    }
+    if (links.some((l) => !isImageUrl(l))) e.photos = 'Photo links must start with http:// or https://.';
+    else if (files.length === 0 && links.length === 0) e.photos = 'Add at least one photo — upload it or paste a link.';
+    return e;
+  };
+
+  const handleSubmit = async (ev: FormEvent) => {
+    ev.preventDefault();
+    const found = validate();
+    setErrors(found);
+    if (Object.keys(found).length) {
+      setFormError('A few details need fixing before this place can be published.');
+      const first = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+      first?.focus();
+      return;
+    }
+    setSubmitting(true);
+    setFormError('');
     try {
-      const placeData = {
-        ...formData,
-        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-        latitude: lat,
-        longitude: lng,
-        suggestedDurationMinutes: Number(formData.suggestedDurationMinutes) || 60
-      };
+      const created = await PlaceService.createPlace({
+        name: form.name.trim(),
+        description: form.description.trim(),
+        city: form.city.trim(),
+        address: form.address.trim(),
+        latitude: Number(form.latitude),
+        longitude: Number(form.longitude),
+        category: form.category,
+        budgetRange: form.budgetRange,
+        operatingHours: form.operatingHours.trim() || undefined,
+        suggestedDurationMinutes: Number(form.suggestedDurationMinutes) || 60,
+        tags: form.tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean),
+        photos: links,
+      });
 
-      const placeRes = await PlaceService.createPlace(placeData);
-      const placeId = (placeRes as any)._id;
-
-      if (files.length > 0) {
-        // Sequentially upload photos
-        for (const file of files) {
-          await MediaService.upload(file, placeId, 'photo');
+      let failed = 0;
+      for (const { file } of files) {
+        try {
+          await MediaService.upload(file, created._id, 'photo');
+        } catch {
+          failed += 1;
         }
       }
 
-      navigate(`/place/${placeId}`);
-    } catch (err: any) {
-      console.error('Submission failed:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to publish place');
+      navigate(`/place/${created._id}`, {
+        state: failed
+          ? {
+              uploadNotice: `Your place is published, but ${failed === 1 ? '1 photo' : `${failed} photos`} could not be uploaded. Photo uploads need the server's Cloudinary settings; pasting image links works without them.`,
+            }
+          : undefined,
+      });
+    } catch (err) {
+      setFormError(errorMessage(err, 'The place could not be published. Try again.'));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-
-
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
-      {/* ─── Sticky Progress Bar ─── */}
-      <div style={{
-        position: 'sticky', top: 'var(--header-height)', zIndex: 40,
-        background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)',
-        borderBottom: '1px solid #f1f5f9',
-      }}>
-        <div style={{
-          maxWidth: 720, margin: '0 auto', padding: '0 24px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          height: 56,
-        }}>
-          <Link to="/" className="no-underline" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            fontSize: 13, fontWeight: 500, color: '#94a3b8', transition: 'color 0.2s',
-          }}>
-            <ChevronLeft size={16} /> Cancel
-          </Link>
-
-          {/* Step indicators */}
-          <div style={{ display: 'flex', gap: 4 }} className="hidden sm:flex">
-            {sections.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                  border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                  ...(activeSection === s.id
-                    ? { background: '#0f172a', color: '#fff' }
-                    : { background: 'transparent', color: '#94a3b8' }
-                  ),
-                }}
-              >
-                {s.icon} {s.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            form="add-place-form"
-            type="submit"
-            disabled={loading}
-            style={{
-              fontSize: 13, fontWeight: 700, background: '#0f172a', color: '#fff',
-              padding: '8px 22px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              opacity: loading ? 0.4 : 1, transition: 'all 0.2s',
-            }}
-          >
-            {loading ? 'Saving...' : 'Publish'}
-          </button>
+    <>
+      <section className="on-dye relative bg-dye text-resist">
+        <LatticeField opacity={0.1} />
+        {/* The ornate end-band the cloth opens with */}
+        <LatticeBand className="relative" />
+        <div className="page-wrap relative pb-10 pt-8">
+          <h1 className="font-display text-[2.6rem] leading-none md:text-[3.4rem]">Share a place</h1>
+          <p className="mt-3 max-w-[56ch] text-[1.1rem] text-resist-dim">
+            Somewhere you'd send a friend. Fill in the facts honestly — they're printed on the place for everyone who finds it.
+          </p>
         </div>
-      </div>
+        <FringeBand edge="bottom" className="absolute inset-x-0 top-full" />
+      </section>
 
-      {/* ─── Main Content ─── */}
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px 140px' }}>
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          {/* Error */}
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                style={{
-                  marginBottom: 28, padding: '14px 18px', background: '#fef2f2',
-                  border: '1px solid #fecaca', color: '#dc2626', borderRadius: 14,
-                  fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 10,
-                }}
-              >
-                <X size={15} /> {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Page header */}
-          <div style={{ marginBottom: 36 }}>
-            <h1 className="font-poppins" style={{ fontSize: 32, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>
-              Share a new place
-            </h1>
-            <p style={{ fontSize: 15, color: '#94a3b8', fontWeight: 500, margin: 0 }}>
-              Help the community discover incredible experiences.
+      <form onSubmit={handleSubmit} noValidate className="page-wrap grid gap-12 pb-28 pt-14 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex min-w-0 flex-col">
+          {formError && (
+            <p role="alert" className="mb-8 rounded-[3px] border-[1.5px] border-madder bg-madder-wash p-4 font-semibold text-madder-deep">
+              {formError}
             </p>
-          </div>
+          )}
 
-          <form id="add-place-form" ref={formRef} onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-            {/* ─── Section 1: Basics ─── */}
-            <SectionCard id="basics">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10, background: '#eef2ff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1',
-                }}>
-                  <FileText size={18} />
-                </div>
-                <div>
-                  <h2 className="font-poppins" style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>The Basics</h2>
-                  <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Name, description & category</p>
-                </div>
+          <Pass title="The place" first>
+            <Field id="name" label="Name" error={errors.name}>
+              <input id="name" className="field" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Sanjay Van sunrise trail" aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'name-error' : undefined} />
+            </Field>
+            <Field id="description" label="What makes it worth the trip?" error={errors.description}>
+              <textarea
+                id="description"
+                className="field"
+                rows={5}
+                value={form.description}
+                onChange={(e) => set('description', e.target.value)}
+                placeholder="When to go, what to do there, what a first-timer should know."
+                aria-invalid={Boolean(errors.description)}
+                aria-describedby={errors.description ? 'description-error' : undefined}
+              />
+            </Field>
+            <fieldset>
+              <legend className="field-label">Category</legend>
+              <div className="flex flex-wrap gap-2">
+                {Object.values(PlaceCategory).map((c) => (
+                  <InkChip key={c} active={form.category === c} onClick={() => set('category', c)}>
+                    {c}
+                  </InkChip>
+                ))}
               </div>
+            </fieldset>
+          </Pass>
 
-              <div>
-                <label style={labelStyle}>Place Title <span style={{ color: '#ef4444' }}>*</span></label>
-                <input
-                  type="text" required style={inputStyle}
-                  placeholder="e.g. Hidden Rooftop Cafe"
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Description <span style={{ color: '#ef4444' }}>*</span></label>
-                <textarea
-                  required rows={5}
-                  style={{ ...inputStyle, resize: 'vertical' as const, lineHeight: 1.7 }}
-                  placeholder="What makes this place special? Share your honest experience..."
-                  value={formData.description}
-                  onChange={e => setFormData({...formData, description: e.target.value})}
-                  onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div>
-                  <label style={labelStyle}>Category</label>
-                  <div style={{ position: 'relative' }}>
-                    <Compass size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1', pointerEvents: 'none' }} />
-                    <select
-                      style={{ ...inputStyle, paddingLeft: 40, cursor: 'pointer', appearance: 'none' as const }}
-                      value={formData.category}
-                      onChange={e => setFormData({...formData, category: e.target.value as any})}
-                    >
-                      {Object.values(PlaceCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label style={labelStyle}>Budget Range</label>
-                  <div style={{ position: 'relative' }}>
-                    <DollarSign size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1', pointerEvents: 'none' }} />
-                    <select
-                      style={{ ...inputStyle, paddingLeft: 40, cursor: 'pointer', appearance: 'none' as const }}
-                      value={formData.budgetRange}
-                      onChange={e => setFormData({...formData, budgetRange: e.target.value as any})}
-                    >
-                      {Object.values(BudgetRange).map(br => <option key={br} value={br}>{br}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
-
-            {/* ─── Section 2: Location ─── */}
-            <SectionCard id="location">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10, background: '#f0fdf4',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981',
-                }}>
-                  <MapPin size={18} />
-                </div>
-                <div>
-                  <h2 className="font-poppins" style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>Location</h2>
-                  <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, margin: 0 }}>City, address & coordinates</p>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div>
-                  <label style={labelStyle}>City <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input
-                    type="text" required style={inputStyle}
-                    placeholder="e.g. Mumbai"
-                    value={formData.city}
-                    onChange={e => setFormData({...formData, city: e.target.value})}
-                    onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
-                    onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Address <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input
-                    type="text" required style={inputStyle}
-                    placeholder="Full street address"
-                    value={formData.address}
-                    onChange={e => setFormData({...formData, address: e.target.value})}
-                    onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
-                    onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
-                  />
-                </div>
-              </div>
-
-
-            </SectionCard>
-
-            {/* ─── Section 3: Photos ─── */}
-            <SectionCard id="photos">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10, background: '#fffbeb',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b',
-                }}>
-                  <ImageIcon size={18} />
-                </div>
-                <div>
-                  <h2 className="font-poppins" style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>Photos</h2>
-                  <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Upload high-quality images</p>
-                </div>
-              </div>
-
-              {/* Upload area */}
-              <div style={{
-                position: 'relative', border: '2px dashed #e2e8f0', background: '#fafbfc',
-                borderRadius: 16, padding: '40px 24px', display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}>
-                <input
-                  type="file" multiple accept="image/*"
-                  onChange={handleFileChange}
-                  style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10 }}
-                />
-                <motion.div
-                  animate={{ y: [0, -4, 0] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                  style={{
-                    width: 52, height: 52, background: '#fff', borderRadius: 14,
-                    boxShadow: '0 2px 8px -2px rgba(0,0,0,0.08)', border: '1px solid #f1f5f9',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14,
-                  }}
-                >
-                  <ImageIcon size={22} style={{ color: '#94a3b8' }} />
-                </motion.div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', marginBottom: 2 }}>Drop photos here</p>
-                <p style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>or click to browse</p>
-              </div>
-
-              {/* Image previews */}
-              <AnimatePresence>
-                {previews.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}
-                  >
-                    {previews.map((url, i) => (
-                      <motion.div
-                        key={url}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.08 }}
-                        style={{
-                          position: 'relative', aspectRatio: '1', borderRadius: 14,
-                          overflow: 'hidden', border: '1px solid #f1f5f9',
-                          background: '#f8fafc', // Grey placeholder background
-                        }}
-                        className="group"
-                      >
-                        <ImagePreviewItem url={url} />
-                        <button
-                          type="button"
-                          onClick={() => removeFile(i)}
-                          style={{
-                            position: 'absolute', top: 6, right: 6, padding: 5,
-                            background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)',
-                            borderRadius: 8, color: '#fff', border: 'none', cursor: 'pointer',
-                            opacity: 0, transition: 'opacity 0.2s',
-                            zIndex: 20
-                          }}
-                          className="group-hover:!opacity-100"
-                        >
-                          <X size={13} />
-                        </button>
-                      </motion.div>
-                    ))}
-                    {/* Add more */}
-                    <div style={{
-                      aspectRatio: '1', borderRadius: 14, border: '2px dashed #e2e8f0',
-                      background: '#fafbfc', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#cbd5e1', cursor: 'pointer', position: 'relative',
-                    }}>
-                      <input type="file" multiple accept="image/*" onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
-                      <Plus size={22} />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </SectionCard>
-
-            {/* ─── Section 4: Details ─── */}
-            <SectionCard id="details">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10, background: '#f5f3ff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6',
-                }}>
-                  <Tag size={18} />
-                </div>
-                <div>
-                  <h2 className="font-poppins" style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>Discoverability</h2>
-                  <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Tags & visit duration</p>
-                </div>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Tags (Keywords)</label>
-                <input
-                  type="text" style={inputStyle}
-                  placeholder="e.g. scenic, quiet, pet-friendly..."
-                  value={formData.tags}
-                  onChange={e => setFormData({...formData, tags: e.target.value})}
-                  onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
-                />
-                <p style={{ fontSize: 11, color: '#cbd5e1', fontWeight: 500, marginTop: 6 }}>Separate keywords with commas</p>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Suggested Visit Duration</label>
-                <div style={{ position: 'relative' }}>
-                  <Clock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1', pointerEvents: 'none' }} />
-                  <input
-                    type="number" style={{ ...inputStyle, paddingLeft: 40 }}
-                    placeholder="60"
-                    value={formData.suggestedDurationMinutes}
-                    onChange={e => setFormData({...formData, suggestedDurationMinutes: parseInt(e.target.value)})}
-                    onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
-                    onBlur={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
-                  />
-                  <span style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: '#cbd5e1' }}>minutes</span>
-                </div>
-              </div>
-            </SectionCard>
-          </form>
-        </motion.div>
-      </div>
-
-      {/* ─── Sticky Bottom Bar ─── */}
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
-        background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)',
-        borderTop: '1px solid #f1f5f9',
-      }}>
-        <div style={{
-          maxWidth: 720, margin: '0 auto', padding: '12px 24px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8, background: '#f1f5f9',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <MapPin size={14} style={{ color: '#94a3b8' }} />
+          <Pass title="Where it is">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field id="city" label="City or town" error={errors.city}>
+                <input id="city" className="field" value={form.city} onChange={(e) => set('city', e.target.value)} placeholder="e.g. Pune" aria-invalid={Boolean(errors.city)} aria-describedby={errors.city ? 'city-error' : undefined} />
+              </Field>
+              <Field id="address" label="Address or landmark" error={errors.address}>
+                <input id="address" className="field" value={form.address} onChange={(e) => set('address', e.target.value)} placeholder="Street, area, or nearest landmark" aria-invalid={Boolean(errors.address)} aria-describedby={errors.address ? 'address-error' : undefined} />
+              </Field>
             </div>
-            <span style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {formData.name || 'Untitled place'}
-            </span>
-          </div>
-          <button
-            form="add-place-form"
-            type="submit"
-            disabled={loading}
-            style={{
-              background: '#0f172a', color: '#fff', padding: '10px 28px',
-              borderRadius: 12, fontWeight: 700, fontSize: 13, border: 'none',
-              cursor: 'pointer', opacity: loading ? 0.4 : 1, flexShrink: 0,
-              transition: 'all 0.2s',
+            <div>
+              <div className="grid gap-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <Field id="lat" label="Latitude">
+                  <input id="lat" inputMode="decimal" className="field tabular" value={form.latitude} onChange={(e) => set('latitude', e.target.value)} placeholder="18.5204" aria-invalid={Boolean(errors.coords)} aria-describedby="coords-help" />
+                </Field>
+                <Field id="lng" label="Longitude">
+                  <input id="lng" inputMode="decimal" className="field tabular" value={form.longitude} onChange={(e) => set('longitude', e.target.value)} placeholder="73.8567" aria-invalid={Boolean(errors.coords)} aria-describedby="coords-help" />
+                </Field>
+                <button type="button" onClick={useMyLocation} disabled={locating} className="btn-line h-12">
+                  <LocateFixed size={16} aria-hidden="true" />
+                  {locating ? 'Finding you…' : "I'm here now"}
+                </button>
+              </div>
+              <p id="coords-help" className={`mt-2 text-[0.95rem] ${errors.coords ? 'font-semibold text-madder' : 'text-iron-3'}`}>
+                {errors.coords || 'Not there now? In Google Maps, right-click the spot and click the numbers to copy them.'}
+              </p>
+            </div>
+          </Pass>
+
+          <Pass title="Photos">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {files.map((f, i) => (
+                <div key={f.preview} className="group relative aspect-square overflow-hidden rounded-[3px] border border-rule bg-dye">
+                  <img src={f.preview} alt={`Selected photo ${i + 1}`} className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-[3px] bg-paper text-iron shadow-[var(--shadow-lift)] hover:bg-madder hover:text-resist"
+                    aria-label={`Remove photo ${i + 1}`}
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+              <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-[3px] border-[1.5px] border-dashed border-rule-strong bg-paper text-center text-iron-2 transition-colors focus-within:border-madder hover:border-iron hover:text-iron">
+                <ImagePlus size={24} aria-hidden="true" />
+                <span className="px-2 text-[0.95rem] font-semibold">Upload photos</span>
+                <input type="file" accept="image/*" multiple onChange={addFiles} className="sr-only" />
+              </label>
+            </div>
+            <Field id="photo-links" label="Or paste image links" error={errors.photos} hint="One per line. Handy when uploads aren't set up.">
+              <textarea
+                id="photo-links"
+                className="field min-h-[88px]"
+                rows={2}
+                value={photoLinks}
+                onChange={(e) => setPhotoLinks(e.target.value)}
+                placeholder="https://…"
+                aria-invalid={Boolean(errors.photos)}
+                aria-describedby={errors.photos ? 'photo-links-error' : 'photo-links-hint'}
+              />
+            </Field>
+          </Pass>
+
+          <Pass title="The facts">
+            <fieldset>
+              <legend className="field-label">Cost</legend>
+              <div className="flex flex-wrap gap-2">
+                {Object.values(BudgetRange).map((b) => (
+                  <InkChip key={b} active={form.budgetRange === b} onClick={() => set('budgetRange', b)}>
+                    {b}
+                  </InkChip>
+                ))}
+              </div>
+            </fieldset>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field id="hours" label="Opening hours" hint="Include closed days if any.">
+                <input id="hours" className="field" value={form.operatingHours} onChange={(e) => set('operatingHours', e.target.value)} placeholder="9:00 AM – 6:00 PM · closed Mondays" aria-describedby="hours-hint" />
+              </Field>
+              <Field id="duration" label="How long to stay (minutes)">
+                <input
+                  id="duration"
+                  type="number"
+                  min={5}
+                  step={5}
+                  className="field tabular"
+                  value={form.suggestedDurationMinutes}
+                  onChange={(e) => set('suggestedDurationMinutes', parseInt(e.target.value, 10) || 0)}
+                />
+              </Field>
+            </div>
+            <Field id="tags" label="Tags" hint="Comma-separated, e.g. sunrise, quiet, street-food">
+              <input id="tags" className="field" value={form.tags} onChange={(e) => set('tags', e.target.value)} aria-describedby="tags-hint" />
+            </Field>
+          </Pass>
+        </div>
+
+        {/* Live proof: the block this place will be printed with */}
+        <aside className="lg:sticky lg:top-[calc(var(--masthead-h)+32px)] lg:self-start">
+          <p className="font-display text-[1.4rem] leading-tight text-iron">{form.name.trim() || 'Your place'}</p>
+          <p className="mb-3 text-[0.95rem] text-iron-2">{form.city.trim() || 'City'} · {form.category}</p>
+          <FactBlock
+            place={{
+              budgetRange: form.budgetRange,
+              operatingHours: form.operatingHours,
+              suggestedDurationMinutes: form.suggestedDurationMinutes,
+              averageRating: 0,
+              totalReviews: 0,
             }}
-          >
-            {loading ? 'Saving...' : 'Publish Place'}
+          />
+          <p className="mt-3 text-sm text-iron-3">This is the block your place is printed with. The rating fills in as people review it.</p>
+          <div className="mt-6 hidden flex-col gap-2 lg:flex">
+            <button type="submit" disabled={submitting} className="btn-ink w-full">
+              {submitting ? 'Publishing…' : 'Publish place'}
+            </button>
+            <Link to="/" className="btn-line w-full">
+              Cancel
+            </Link>
+          </div>
+        </aside>
+
+        {/* Mobile action bar */}
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-rule bg-paper/95 p-3 backdrop-blur-sm lg:hidden">
+          <button type="submit" disabled={submitting} className="btn-ink w-full">
+            {submitting ? 'Publishing…' : 'Publish place'}
           </button>
         </div>
-      </div>
-    </div>
+      </form>
+    </>
   );
 };
+
+function Pass({ title, children, first = false }: { title: string; children: ReactNode; first?: boolean }) {
+  return (
+    <section className={`flex flex-col gap-6 ${first ? '' : 'mt-12 border-t-2 border-iron pt-10'}`}>
+      <h2 className="font-display text-[1.9rem] leading-none text-iron">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: string; children: ReactNode }) {
+  return (
+    <div>
+      <label htmlFor={id} className="field-label">
+        {label}
+      </label>
+      {children}
+      {error ? (
+        <p id={`${id}-error`} className="mt-1.5 text-[0.95rem] font-semibold text-madder">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={`${id}-hint`} className="mt-1.5 text-[0.95rem] text-iron-3">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export default AddPlace;

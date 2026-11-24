@@ -77,7 +77,7 @@ export interface IPlace {
   photos: string[];
   averageRating: number;
   totalReviews: number;
-  addedBy: { _id: string; name: string; avatar: string } | string;
+  addedBy: { _id: string; name: string; avatar: string; isSample?: boolean } | string;
   isVerified: boolean;
   createdAt: string;
   updatedAt: string;
@@ -85,7 +85,7 @@ export interface IPlace {
 
 export interface IReview {
   _id: string;
-  userId: { _id: string; name: string; avatar: string };
+  userId: { _id: string; name: string; avatar: string; isSample?: boolean };
   placeId: string;
   rating: number;
   text: string;
@@ -127,7 +127,7 @@ export interface IMedia {
 export interface IVisitEvent {
   _id: string;
   placeId: { _id: string; name: string; city: string } | string;
-  creatorId: { _id: string; name: string; avatar: string } | string;
+  creatorId: { _id: string; name: string; avatar: string; isSample?: boolean } | string;
   title: string;
   description: string;
   scheduledDate: string;
@@ -144,6 +144,7 @@ export interface IThread {
   content: string;
   userId: string;
   userName: string;
+  userIsSample?: boolean;
   placeId: string;
   mediaUrls: string[];
   createdAt: string;
@@ -156,6 +157,7 @@ export interface IThreadReply {
   content: string;
   userId: string;
   userName: string;
+  userIsSample?: boolean;
   createdAt: string;
 }
 
@@ -180,4 +182,25 @@ export interface PlaceFilters {
 export interface GeoLocation {
   latitude: number;
   longitude: number;
+}
+
+export interface ICityCount {
+  city: string;
+  count: number;
+}
+
+export interface ICommunityStats {
+  places: number;
+  cities: number;
+  reviews: number;
+  travelers: number;
+  topCities: ICityCount[];
+  /** True while seeded sample accounts exist */
+  sample?: boolean;
+}
+
+export interface IUserStats {
+  placesAdded: number;
+  reviews: number;
+  bookmarks: number;
 }

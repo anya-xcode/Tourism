@@ -1,51 +1,52 @@
 import type { ReactNode } from 'react';
-import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { BlockMark, FringeBand, LatticeField } from '../print/Print';
 
 type AuthTravelShellProps = {
   children: ReactNode;
 };
 
+const PHOTO = 'https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&q=80&w=1200';
+
+/** Split layout for sign-in pages: indigo cloth with a printed swatch, form on cotton. */
 export function AuthTravelShell({ children }: AuthTravelShellProps) {
   return (
-    <div className="auth-split-wrapper">
-      {/* Decorative Side: Image/Inspiration */}
-      <div className="auth-image-side">
-        <div 
-          className="absolute inset-0 z-0 bg-cover bg-center brightness-[0.85] contrast-[1.1] transition-transform duration-[10s] hover:scale-110"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&q=80')" }}
-        />
-        <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-        
-        <motion.div 
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="absolute bottom-12 left-12 right-12 z-20 text-white"
-        >
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-500/20 px-3 py-1 backdrop-blur-md border border-blue-400/30">
-            <span className="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
-            <span className="text-[12px] font-bold uppercase tracking-widest text-blue-100">Global Discovery</span>
-          </div>
-          <h2 className="text-4xl font-bold leading-tight font-poppins mb-4 text-white drop-shadow-md">
-            Collect moments, <br />
-            <span className="text-blue-300">not things.</span>
-          </h2>
-          <p className="text-lg font-medium text-white/80 max-w-[320px]">
-            Join thousands of travelers exploring the world's most hidden gems.
-          </p>
-        </motion.div>
-      </div>
+    <div className="flex min-h-screen">
+      <aside className="on-dye relative hidden w-[46%] max-w-[680px] flex-col justify-between overflow-hidden bg-dye p-12 text-resist lg:flex">
+        <LatticeField opacity={0.09} />
+        <Link to="/" className="relative inline-flex items-center gap-2.5 self-start text-resist no-underline">
+          <BlockMark size={32} />
+          <span className="font-display text-[1.5rem] leading-none">Travel Explorer</span>
+        </Link>
 
-      {/* Logic Side: Form */}
-      <div className="auth-form-side">
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-[440px]"
-        >
-          {children}
-        </motion.div>
+        <figure className="relative mx-auto my-10 w-full max-w-[420px] rotate-[-2deg] border-[10px] border-paper bg-paper shadow-[0_18px_40px_-18px_rgb(0_0_0/0.6)]">
+          <img src={PHOTO} alt="The latticed façade of Hawa Mahal in Jaipur" className="aspect-[4/5] w-full object-cover" />
+          <figcaption className="flex items-baseline justify-between gap-3 pt-2.5 text-iron">
+            <span className="font-display text-[1.2rem] leading-none">Hawa Mahal</span>
+            <span className="text-sm text-iron-2">Jaipur · Heritage</span>
+          </figcaption>
+        </figure>
+
+        <p className="relative max-w-[30ch] font-display text-[1.9rem] leading-[1.1]">
+          Cost, hours and how long to stay, printed the same way for every place.
+        </p>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col bg-cotton">
+        <div className="on-dye lg:hidden">
+          <div className="bg-dye">
+            <div className="page-wrap flex h-[var(--masthead-h)] items-center">
+              <Link to="/" className="inline-flex items-center gap-2.5 text-resist no-underline">
+                <BlockMark size={30} />
+                <span className="font-display text-[1.4rem] leading-none">Travel Explorer</span>
+              </Link>
+            </div>
+          </div>
+          <FringeBand edge="bottom" />
+        </div>
+        <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-8">
+          <div className="w-full max-w-[420px]">{children}</div>
+        </div>
       </div>
     </div>
   );

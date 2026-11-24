@@ -1,410 +1,512 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
-import { PlaceService } from '../services/PlaceService';
-import { Search, Map as MapIcon, Star, MapPin, ChevronRight, Layers, Navigation, LocateFixed } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { GoogleMap, InfoWindow, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { ArrowRight, LocateFixed, MapPin, Minus, Plus, Search, Star } from 'lucide-react';
+import { PlaceService } from '../services/PlaceService';
+import { FactBlock } from '../components/print/FactBlock';
+import { LatticeField, PlaceArt } from '../components/print/Print';
 import type { IPlace } from '../types';
+import { budgetMarks, errorMessage, formatDuration, hasRating, plainText, plural, sizedPhoto } from '../lib/format';
 
-const containerStyle = { width: '100%', height: '100%' };
-const defaultCenter = { lat: 28.6139, lng: 77.2090 };
+const MAPS_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) || '';
+const DEFAULT_CENTER = { lat: 22.5, lng: 79 }; // centre of India
+
+const coords = (p: IPlace) => {
+  const [lng, lat] = p.location?.coordinates || [];
+  return typeof lat === 'number' && typeof lng === 'number' ? { lat, lng } : null;
+};
 
 const ExploreMap = () => {
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
-  });
-
   const [places, setPlaces] = useState<IPlace[]>([]);
-  const [selectedPlace, setSelectedPlace] = useState<any>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [currentLocation, setCurrentLocation] = useState('');
-  const [mapCenter, setMapCenter] = useState(defaultCenter);
-  const [locatingUser, setLocatingUser] = useState(false);
+  const [error, setError] = useState('');
+  const [term, setTerm] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
 
-  useEffect(() => {
-    const fetchPlaces = async () => {
-      try {
-        setLoading(true);
-        const res = await PlaceService.getPlaces({ limit: 100 });
-        setPlaces(res.places || []);
-      } catch (err) {
-        console.error('Map fetch failed:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPlaces();
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await PlaceService.getPlaces({ limit: 100 });
+      setPlaces((res.places || []).filter((p) => coords(p)));
+    } catch (err) {
+      setError(errorMessage(err, 'Places could not be loaded.'));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const filteredPlaces = useMemo(() => {
-    return places.filter(p =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.city.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [places, searchTerm]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const handlePlaceSelect = useCallback((place: any) => {
-    setSelectedPlace(place);
-    map?.panTo({
-      lat: place.location.coordinates[1],
-      lng: place.location.coordinates[0]
-    });
-    map?.setZoom(15);
-  }, [map]);
-
-  const handleUseMyLocation = useCallback(() => {
-    if (!navigator.geolocation) return;
-    setLocatingUser(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setMapCenter(userPos);
-        map?.panTo(userPos);
-        map?.setZoom(13);
-        setCurrentLocation(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
-        setLocatingUser(false);
-      },
-      () => {
-        setLocatingUser(false);
-        setCurrentLocation('Location access denied');
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
+  const filtered = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    if (!q) return places;
+    return places.filter(
+      (p) => p.name.toLowerCase().includes(q) || p.city.toLowerCase().includes(q) || p.category.toLowerCase().includes(q),
     );
-  }, [map]);
+  }, [places, term]);
+
+  const selected = filtered.find((p) => p._id === selectedId) || null;
+
+  const select = useCallback(
+    (place: IPlace) => {
+      setSelectedId(place._id);
+      const c = coords(place);
+      if (map && c) {
+        map.panTo(c);
+        if ((map.getZoom() || 5) < 12) map.setZoom(13);
+      }
+    },
+    [map],
+  );
 
   return (
-    <div style={{ height: 'calc(100vh - var(--header-height))', display: 'flex', overflow: 'hidden', background: '#fff' }}>
-      {/* ─── Sidebar ─── */}
-      <div className="hidden lg:flex" style={{
-        width: 370, background: '#fff', borderRight: '1px solid #f1f5f9',
-        flexDirection: 'column', zIndex: 10,
-      }}>
-        {/* Header */}
-        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #f1f5f9' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 10, background: '#0f172a',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
-              }}>
-                <MapIcon size={16} />
-              </div>
-              <div>
-                <h2 className="font-poppins" style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>Explorer</h2>
-                <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Interactive map</p>
-              </div>
-            </div>
-            <span style={{
-              padding: '4px 10px', background: '#eef2ff', color: '#6366f1',
-              borderRadius: 8, fontSize: 11, fontWeight: 700,
-            }}>
-              {filteredPlaces.length} spots
+    <div className="flex flex-col lg:h-[calc(100vh-var(--masthead-h))] lg:flex-row">
+      {/* ─── List ─── */}
+      <aside className="order-2 flex flex-col border-rule bg-paper lg:order-1 lg:w-[380px] lg:shrink-0 lg:border-r">
+        <div className="border-b border-rule px-4 pb-4 pt-8 lg:pt-9">
+          <div className="flex items-baseline justify-between gap-3">
+            <h1 className="font-display text-[2rem] leading-none text-iron">Map</h1>
+            <span className="tabular text-[0.95rem] text-iron-2" aria-live="polite">
+              {loading ? 'Loading…' : plural(filtered.length, 'place')}
             </span>
           </div>
-
-          {/* Search */}
-          <div style={{ position: 'relative', marginBottom: 12 }}>
-            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1', pointerEvents: 'none' }} />
+          {!MAPS_KEY && (
+            <p className="mt-2 text-sm text-iron-3">Places are plotted by their coordinates. The street map appears once a Google Maps key is set.</p>
+          )}
+          <div className="relative mt-4">
+            <label htmlFor="map-search" className="sr-only">
+              Filter places on the map
+            </label>
+            <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-iron-3" aria-hidden="true" />
             <input
-              type="text"
-              placeholder="Search city or place..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%', background: '#f8fafc', border: '1.5px solid #f1f5f9',
-                borderRadius: 10, padding: '10px 14px 10px 38px', fontSize: 13, fontWeight: 500,
-                outline: 'none', color: '#0f172a', transition: 'all 0.2s',
-                fontFamily: 'Inter, sans-serif',
-              }}
-              onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.background = '#fff'; }}
-              onBlur={e => { e.currentTarget.style.borderColor = '#f1f5f9'; e.currentTarget.style.background = '#f8fafc'; }}
+              id="map-search"
+              type="search"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              placeholder="Filter by name, city or category"
+              className="field pl-10"
+              autoComplete="off"
             />
-          </div>
-
-          {/* Current Location Input */}
-          <div style={{ position: 'relative' }}>
-            <LocateFixed size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#14b8a6', pointerEvents: 'none' }} />
-            <input
-              type="text"
-              placeholder="Your current location"
-              value={currentLocation}
-              onChange={(e) => setCurrentLocation(e.target.value)}
-              readOnly
-              style={{
-                width: '100%', background: '#f0fdfa', border: '1.5px solid #ccfbf1',
-                borderRadius: 10, padding: '10px 90px 10px 38px', fontSize: 12, fontWeight: 600,
-                outline: 'none', color: '#0f172a', transition: 'all 0.2s',
-                fontFamily: 'Inter, sans-serif', cursor: 'default',
-              }}
-            />
-            <button
-              onClick={handleUseMyLocation}
-              disabled={locatingUser}
-              style={{
-                position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-                display: 'flex', alignItems: 'center', gap: 4,
-                padding: '5px 10px', background: '#14b8a6', color: '#fff',
-                border: 'none', borderRadius: 7, fontSize: 10, fontWeight: 700,
-                cursor: locatingUser ? 'wait' : 'pointer', transition: 'all 0.2s',
-                opacity: locatingUser ? 0.6 : 1,
-              }}
-            >
-              <Navigation size={11} />
-              {locatingUser ? 'Finding...' : 'Locate Me'}
-            </button>
           </div>
         </div>
 
-        {/* Place List */}
-        <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
-          {loading ? (
-            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="animate-pulse" style={{ display: 'flex', gap: 12, padding: 10 }}>
-                  <div style={{ width: 52, height: 52, borderRadius: 12, background: '#f1f5f9', flexShrink: 0 }} />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
-                    <div style={{ height: 10, background: '#f1f5f9', borderRadius: 99, width: '75%' }} />
-                    <div style={{ height: 8, background: '#f8fafc', borderRadius: 99, width: '50%' }} />
+        <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+          {error ? (
+            <div className="p-5">
+              <p className="text-iron-2">{error}</p>
+              <button type="button" onClick={load} className="btn-ink mt-3">
+                Try again
+              </button>
+            </div>
+          ) : loading ? (
+            <ul className="flex flex-col gap-1 p-2" aria-hidden="true">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <li key={i} className="flex gap-3 p-2">
+                  <div className="skeleton h-14 w-14 rounded-[3px]" />
+                  <div className="flex flex-1 flex-col gap-2 pt-1">
+                    <div className="skeleton h-4 w-3/4 rounded-[2px]" />
+                    <div className="skeleton h-3 w-1/2 rounded-[2px]" />
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
-          ) : filteredPlaces.length === 0 ? (
-            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-              <div style={{
-                width: 48, height: 48, background: '#f8fafc', borderRadius: 12,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px',
-              }}>
-                <MapPin size={20} style={{ color: '#cbd5e1' }} />
-              </div>
-              <p style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}>No places found</p>
-            </div>
+            </ul>
+          ) : filtered.length === 0 ? (
+            <p className="p-5 text-iron-2">No places match “{term}”.</p>
           ) : (
-            <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {filteredPlaces.map((place: any) => {
-                const isActive = selectedPlace?._id === place._id;
+            <ul className="flex flex-col gap-1 p-2">
+              {filtered.map((p) => {
+                const active = p._id === selectedId;
+                const thumb = sizedPhoto(p.photos?.[0], 160);
                 return (
-                  <div
-                    key={place._id}
-                    onClick={() => handlePlaceSelect(place)}
-                    style={{
-                      display: 'flex', gap: 12, padding: 10, borderRadius: 14,
-                      cursor: 'pointer', transition: 'all 0.2s',
-                      background: isActive ? '#eef2ff' : 'transparent',
-                      border: isActive ? '1px solid #e0e7ff' : '1px solid transparent',
-                    }}
-                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = '#f8fafc'; }}
-                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                  >
-                    {/* Thumbnail */}
-                    <div style={{
-                      width: 52, height: 52, borderRadius: 12, overflow: 'hidden',
-                      flexShrink: 0, background: '#f1f5f9',
-                    }}>
-                      <img
-                        src={place.photos?.[0] || 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=120'}
-                        alt=""
-                        loading="lazy"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-
-                    {/* Info */}
-                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                        <h4 style={{
-                          fontSize: 13, fontWeight: 700, margin: 0,
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          color: isActive ? '#4338ca' : '#1e293b',
-                        }}>
-                          {place.name}
-                        </h4>
-                        <ChevronRight size={13} style={{
-                          flexShrink: 0, color: isActive ? '#6366f1' : '#e2e8f0',
-                          transition: 'all 0.2s',
-                        }} />
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3 }}>
-                        <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {place.category} · {place.city}
+                  <li key={p._id}>
+                    <button
+                      type="button"
+                      onClick={() => select(p)}
+                      aria-pressed={active}
+                      className={`flex w-full items-center gap-3 rounded-[3px] border-[1.5px] p-2 text-left transition-colors ${
+                        active ? 'border-madder bg-madder-wash' : 'border-transparent hover:bg-cotton'
+                      }`}
+                    >
+                      <span className="h-14 w-14 shrink-0 overflow-hidden rounded-[3px] bg-dye">
+                        {thumb ? <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" /> : <PlaceArt name={p.name} />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-display text-[1.15rem] leading-tight text-iron">{plainText(p.name)}</span>
+                        <span className="mt-0.5 block truncate text-sm text-iron-2">
+                          {p.city} · {p.category}
                         </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                          <Star size={10} style={{ color: '#fbbf24', fill: '#fbbf24' }} />
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>4.8</span>
+                        {/* The compact facts every map row carries: cost, stay, rating */}
+                        <span className="tabular mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-iron">
+                          <span>{budgetMarks(p.budgetRange)}</span>
+                          <span aria-hidden="true" className="text-rule-strong">·</span>
+                          <span>{formatDuration(p.suggestedDurationMinutes)}</span>
+                          <span aria-hidden="true" className="text-rule-strong">·</span>
+                          <span className="inline-flex items-center gap-0.5">
+                            {hasRating(p) ? (
+                              <>
+                                {p.averageRating.toFixed(1)}
+                                <Star size={12} className="fill-iron" aria-hidden="true" />
+                              </>
+                            ) : (
+                              <span className="font-normal text-iron-3">New</span>
+                            )}
+                          </span>
                         </span>
-                      </div>
-                    </div>
-                  </div>
+                      </span>
+                    </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
         </div>
-      </div>
+      </aside>
 
-      {/* ─── Map Area ─── */}
-      <div style={{ flex: 1, position: 'relative', background: '#f8fafc' }}>
-        {isLoaded ? (
-          <>
-            <GoogleMap
-              mapContainerStyle={containerStyle}
-              center={mapCenter}
-              zoom={12}
-              onLoad={m => setMap(m)}
-              options={{
-                styles: mapStyles,
-                disableDefaultUI: true,
-                zoomControl: false,
-              }}
-            >
-              {filteredPlaces.map((place: any) => (
-                <Marker
-                  key={place._id}
-                  position={{
-                    lat: place.location.coordinates[1],
-                    lng: place.location.coordinates[0]
-                  }}
-                  onClick={() => handlePlaceSelect(place)}
-                  icon={{
-                    path: google.maps.SymbolPath.CIRCLE,
-                    fillColor: selectedPlace?._id === place._id ? '#4f46e5' : '#1e293b',
-                    fillOpacity: 1,
-                    strokeWeight: 3,
-                    strokeColor: '#ffffff',
-                    scale: selectedPlace?._id === place._id ? 10 : 7,
-                  }}
-                />
-              ))}
-
-              {selectedPlace && (
-                <InfoWindow
-                  position={{
-                    lat: selectedPlace.location.coordinates[1],
-                    lng: selectedPlace.location.coordinates[0]
-                  }}
-                  onCloseClick={() => setSelectedPlace(null)}
-                >
-                  <div style={{ padding: 4, width: 240 }}>
-                    <div style={{ position: 'relative', height: 120, width: '100%', marginBottom: 10, borderRadius: 12, overflow: 'hidden' }}>
-                      <img
-                        src={selectedPlace.photos?.[0] || 'https://images.unsplash.com/photo-1501785888041-af3ef285b470'}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        alt=""
-                      />
-                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.3), transparent)' }} />
-                      <span style={{
-                        position: 'absolute', top: 8, right: 8, padding: '2px 8px',
-                        background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)',
-                        borderRadius: 6, fontSize: 10, fontWeight: 700, color: '#374151',
-                      }}>
-                        {selectedPlace.category}
-                      </span>
-                    </div>
-                    <h4 style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: 14, marginBottom: 4, color: '#1e293b' }}>
-                      {selectedPlace.name}
-                    </h4>
-                    <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <MapPin size={11} style={{ color: '#6366f1' }} /> {selectedPlace.city}
-                    </p>
-                    <Link
-                      to={`/place/${selectedPlace._id}`}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: '100%', padding: '8px 16px', background: '#0f172a',
-                        color: '#fff', borderRadius: 10, fontSize: 12, fontWeight: 700,
-                        textDecoration: 'none',
-                      }}
-                    >
-                      View Details
-                    </Link>
-                  </div>
-                </InfoWindow>
-              )}
-            </GoogleMap>
-
-            {/* Map overlay controls */}
-            <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', flexDirection: 'column', gap: 6, zIndex: 10 }}>
-              <button
-                onClick={() => map?.setZoom((map?.getZoom() || 12) + 1)}
-                style={{
-                  width: 40, height: 40, background: '#fff', borderRadius: 12,
-                  boxShadow: '0 2px 8px -2px rgba(0,0,0,0.12)', border: '1px solid #f1f5f9',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#475569', fontSize: 18, fontWeight: 700, cursor: 'pointer',
-                }}
-              >
-                +
-              </button>
-              <button
-                onClick={() => map?.setZoom((map?.getZoom() || 12) - 1)}
-                style={{
-                  width: 40, height: 40, background: '#fff', borderRadius: 12,
-                  boxShadow: '0 2px 8px -2px rgba(0,0,0,0.12)', border: '1px solid #f1f5f9',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#475569', fontSize: 18, fontWeight: 700, cursor: 'pointer',
-                }}
-              >
-                −
-              </button>
-            </div>
-
-            {/* Bottom controls */}
-            <div style={{ position: 'absolute', bottom: 20, right: 16, zIndex: 10, display: 'flex', gap: 8 }}>
-              {/* Mobile: Locate Me button (visible only on small screens) */}
-              <button
-                onClick={handleUseMyLocation}
-                className="lg:hidden"
-                style={{
-                  padding: '10px 16px', background: '#14b8a6', borderRadius: 12, color: '#fff',
-                  boxShadow: '0 2px 8px -2px rgba(20,184,166,0.3)', border: 'none',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                }}>
-                <LocateFixed size={14} /> My Location
-              </button>
-              <button style={{
-                padding: '10px 16px', background: '#fff', borderRadius: 12,
-                boxShadow: '0 2px 8px -2px rgba(0,0,0,0.12)', border: '1px solid #f1f5f9',
-                display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: 12, fontWeight: 700, color: '#475569', cursor: 'pointer',
-              }}>
-                <Layers size={14} /> Layers
-              </button>
-            </div>
-          </>
+      {/* ─── Map ─── */}
+      <section className="on-dye relative order-1 h-[52vh] min-h-[340px] flex-1 overflow-hidden bg-dye lg:order-2 lg:h-auto" aria-label="Map of places">
+        {MAPS_KEY ? (
+          <GoogleMapPane places={filtered} selected={selected} onSelect={select} onLoad={setMap} onClear={() => setSelectedId(null)} map={map} />
         ) : (
-          <div style={{
-            height: '100%', width: '100%', display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: 14, background: '#f8fafc',
-          }}>
-            <div style={{
-              width: 40, height: 40, border: '3px solid #e2e8f0',
-              borderTopColor: '#6366f1', borderRadius: '50%',
-            }} className="animate-spin" />
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.03em' }}>Loading map...</span>
+          <PlotPane places={filtered} selected={selected} onSelect={select} />
+        )}
+        {selected && !MAPS_KEY && (
+          <div className="absolute right-4 top-8 hidden w-[360px] sm:block">
+            <SelectedCard place={selected} />
           </div>
         )}
-      </div>
+      </section>
+      {selected && !MAPS_KEY && (
+        <div className="order-1 border-b border-rule bg-cotton p-3 sm:hidden">
+          <SelectedCard place={selected} />
+        </div>
+      )}
     </div>
   );
 };
 
-const mapStyles = [
-  { "elementType": "geometry", "stylers": [{ "color": "#f8fafc" }] },
-  { "elementType": "labels.text.fill", "stylers": [{ "color": "#64748b" }] },
-  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#f8fafc" }] },
-  { "featureType": "administrative.land_parcel", "elementType": "labels.text.fill", "stylers": [{ "color": "#94a3b8" }] },
-  { "featureType": "poi", "elementType": "geometry", "stylers": [{ "color": "#f1f5f9" }] },
-  { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#94a3b8" }] },
-  { "featureType": "poi.park", "elementType": "geometry.fill", "stylers": [{ "color": "#e0f2fe" }] },
-  { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#ffffff" }] },
-  { "featureType": "road.arterial", "elementType": "labels.text.fill", "stylers": [{ "color": "#94a3b8" }] },
-  { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#e2e8f0" }] },
-  { "featureType": "road.highway", "elementType": "labels.text.fill", "stylers": [{ "color": "#64748b" }] },
-  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#dbeafe" }] },
-  { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#93c5fd" }] },
+/* ─── Fallback: places plotted by coordinates (no map key needed) ───── */
+
+const LABEL_PX = 15; // label size on screen, independent of how far the plot is scaled
+const DOT_PX = 7;
+
+function PlotPane({ places, selected, onSelect }: { places: IPlace[]; selected: IPlace | null; onSelect: (p: IPlace) => void }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setBox({ w: entry.contentRect.width, h: entry.contentRect.height }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const layout = useMemo(() => {
+    if (!box.w || !box.h || places.length === 0) return null;
+    const pts = places.map((p) => ({ p, c: coords(p)! }));
+    const lats = pts.map((x) => x.c.lat);
+    const lngs = pts.map((x) => x.c.lng);
+    const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+    const k = Math.cos((midLat * Math.PI) / 180); // shrink longitude so shapes stay honest
+    const minX = Math.min(...lngs) * k;
+    const maxX = Math.max(...lngs) * k;
+    const minY = -Math.max(...lats);
+    const maxY = -Math.min(...lats);
+    const dataW = Math.max(maxX - minX, 0.5);
+    const dataH = Math.max(maxY - minY, 0.5);
+    // Fit the data into the pane in screen pixels, leaving room for labels
+    const padX = 90;
+    const padTop = 48;
+    const padBottom = 40;
+    const scale = Math.min((box.w - padX * 2) / dataW, (box.h - padTop - padBottom) / dataH);
+    const offX = (box.w - dataW * scale) / 2;
+    const offY = padTop + (box.h - padTop - padBottom - dataH * scale) / 2;
+    const toXY = (c: { lat: number; lng: number }) => ({ x: offX + (c.lng * k - minX) * scale, y: offY + (-c.lat - minY) * scale });
+    const dots = pts.map(({ p, c }) => ({ p, ...toXY(c) }));
+
+    // Nudge near-coincident places apart (a few pixels) so every dot stays visible and tappable
+    const MIN_GAP = DOT_PX * 2 + 8;
+    for (let pass = 0; pass < 24; pass++) {
+      let moved = false;
+      for (let i = 0; i < dots.length; i++) {
+        for (let j = i + 1; j < dots.length; j++) {
+          const a = dots[i];
+          const b = dots[j];
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          let d = Math.hypot(dx, dy);
+          if (d >= MIN_GAP) continue;
+          if (d < 0.01) [dx, dy, d] = [1, 0, 1];
+          const push = (MIN_GAP - d) / 2;
+          a.x -= (dx / d) * push;
+          a.y -= (dy / d) * push;
+          b.x += (dx / d) * push;
+          b.y += (dy / d) * push;
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+
+    // One label per city; cities too close to label apart share one label ("Alappuzha · Kumarakom")
+    type Rect = { x1: number; y1: number; x2: number; y2: number };
+    type Group = { names: string[]; box: Rect };
+    const groups: Group[] = [];
+    const MERGE_PX = 46;
+    dots.forEach(({ p, x, y }) => {
+      const name = p.city.trim();
+      const near = (g: Group) =>
+        g.names.includes(name) ||
+        (x > g.box.x1 - MERGE_PX && x < g.box.x2 + MERGE_PX && y > g.box.y1 - MERGE_PX / 2 && y < g.box.y2 + MERGE_PX / 2);
+      const g = groups.find(near);
+      if (!g) {
+        groups.push({ names: [name], box: { x1: x, y1: y, x2: x, y2: y } });
+        return;
+      }
+      if (!g.names.includes(name)) g.names.push(name);
+      g.box = { x1: Math.min(g.box.x1, x), y1: Math.min(g.box.y1, y), x2: Math.max(g.box.x2, x), y2: Math.max(g.box.y2, y) };
+    });
+
+    const overlap = (a: Rect, b: Rect) =>
+      Math.max(0, Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1)) * Math.max(0, Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1));
+    // Dots reserve the selection ring's footprint, so a label never sits under a ring
+    const RING = DOT_PX + 9;
+    const taken: Rect[] = dots.map(({ x, y }) => ({ x1: x - RING, y1: y - RING, x2: x + RING, y2: y + RING }));
+    const labels: { text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end' }[] = [];
+    groups
+      .sort((a, b) => a.box.y1 - b.box.y1)
+      .forEach(({ names, box: b }) => {
+        const text = names.join(' · ');
+        const w = text.length * LABEL_PX * 0.58;
+        const h = LABEL_PX;
+        const g = RING + 2;
+        const cx = (b.x1 + b.x2) / 2;
+        const cy = (b.y1 + b.y2) / 2;
+        const candidates: { x: number; y: number; anchor: 'start' | 'middle' | 'end'; r: Rect }[] = [
+          { x: b.x2 + g, y: cy + h * 0.35, anchor: 'start', r: { x1: b.x2 + g, y1: cy - h * 0.65, x2: b.x2 + g + w, y2: cy + h * 0.35 } },
+          { x: b.x1 - g, y: cy + h * 0.35, anchor: 'end', r: { x1: b.x1 - g - w, y1: cy - h * 0.65, x2: b.x1 - g, y2: cy + h * 0.35 } },
+          { x: cx, y: b.y2 + g + h * 0.8, anchor: 'middle', r: { x1: cx - w / 2, y1: b.y2 + g, x2: cx + w / 2, y2: b.y2 + g + h } },
+          { x: cx, y: b.y1 - g - h * 0.2, anchor: 'middle', r: { x1: cx - w / 2, y1: b.y1 - g - h, x2: cx + w / 2, y2: b.y1 - g } },
+          { x: b.x2 + g, y: b.y1 - g * 0.4, anchor: 'start', r: { x1: b.x2 + g, y1: b.y1 - g * 0.4 - h, x2: b.x2 + g + w, y2: b.y1 - g * 0.4 } },
+          { x: b.x1 - g, y: b.y2 + g * 0.4 + h * 0.8, anchor: 'end', r: { x1: b.x1 - g - w, y1: b.y2 + g * 0.4, x2: b.x1 - g, y2: b.y2 + g * 0.4 + h } },
+        ];
+        const fits = (r: Rect) => r.x1 >= 4 && r.x2 <= box.w - 4 && r.y1 >= 4 && r.y2 <= box.h - 4;
+        const cost = (r: Rect) => taken.reduce((sum, t) => sum + overlap(t, r), 0);
+        const inside = candidates.filter((c) => fits(c.r));
+        // First clear spot inside the pane; otherwise whichever spot covers the least
+        const pick = inside.find((c) => cost(c.r) === 0) || [...(inside.length ? inside : candidates)].sort((p, q) => cost(p.r) - cost(q.r))[0];
+        taken.push(pick.r);
+        labels.push({ text, x: pick.x, y: pick.y, anchor: pick.anchor });
+      });
+    return { dots, labels };
+  }, [places, box]);
+
+  return (
+    <div ref={boxRef} className="absolute inset-0">
+      <LatticeField opacity={0.08} />
+      {places.length === 0 ? (
+        <div className="relative flex h-full items-center justify-center text-resist-dim">No places to plot.</div>
+      ) : layout ? (
+        <svg width={box.w} height={box.h} className="relative block" role="group" aria-label="Places plotted by location">
+          {layout.labels.map((l) => (
+            <text
+              key={l.text}
+              x={l.x}
+              y={l.y}
+              textAnchor={l.anchor}
+              fill="var(--color-resist)"
+              fontSize={LABEL_PX}
+              fontFamily="var(--font-display)"
+              paintOrder="stroke"
+              stroke="var(--color-dye)"
+              strokeWidth={4}
+              aria-hidden="true"
+            >
+              {l.text}
+            </text>
+          ))}
+          {layout.dots.map(({ p, x, y }) => {
+            const active = selected?._id === p._id;
+            return (
+              <g
+                key={p._id}
+                role="button"
+                tabIndex={0}
+                aria-label={`${plainText(p.name)}, ${p.city}`}
+                aria-pressed={active}
+                onClick={() => onSelect(p)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelect(p);
+                  }
+                }}
+                className="cursor-pointer"
+              >
+                <circle cx={x} cy={y} r={20} fill="transparent" />
+                {active && <circle cx={x} cy={y} r={DOT_PX + 7} fill="none" stroke="var(--color-turmeric)" strokeWidth={3} />}
+                <circle cx={x} cy={y} r={active ? DOT_PX + 2 : DOT_PX} fill="var(--color-madder)" stroke="var(--color-resist)" strokeWidth={2.5} />
+              </g>
+            );
+          })}
+        </svg>
+      ) : null}
+    </div>
+  );
+}
+
+function SelectedCard({ place }: { place: IPlace }) {
+  const thumb = sizedPhoto(place.photos?.[0], 480);
+  return (
+    <div className="rounded-[3px] border-2 border-iron bg-paper text-iron shadow-[var(--shadow-lift)]">
+      <div className="flex gap-3 p-3">
+        <span className="h-20 w-20 shrink-0 overflow-hidden rounded-[3px] bg-dye">
+          {thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : <PlaceArt name={place.name} />}
+        </span>
+        <div className="min-w-0">
+          <p className="font-display text-[1.3rem] leading-tight">{plainText(place.name)}</p>
+          <p className="mt-0.5 flex items-center gap-1 text-sm text-iron-2">
+            <MapPin size={13} aria-hidden="true" /> {place.city} · {place.category}
+          </p>
+          <Link to={`/place/${place._id}`} className="ink-link mt-2 inline-flex items-center gap-1 text-[0.95rem]">
+            Open place <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+        </div>
+      </div>
+      <div className="px-3 pb-3">
+        <FactBlock place={place} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── With a key: the Google map, inked to match ─────────────────────── */
+
+function GoogleMapPane({
+  places,
+  selected,
+  onSelect,
+  onLoad,
+  onClear,
+  map,
+}: {
+  places: IPlace[];
+  selected: IPlace | null;
+  onSelect: (p: IPlace) => void;
+  onLoad: (m: google.maps.Map) => void;
+  onClear: () => void;
+  map: google.maps.Map | null;
+}) {
+  const { isLoaded, loadError } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: MAPS_KEY });
+  const [locating, setLocating] = useState(false);
+
+  const locate = () => {
+    if (!navigator.geolocation || !map) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        map.panTo({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        map.setZoom(12);
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { timeout: 8000 },
+    );
+  };
+
+  if (loadError) {
+    return <div className="flex h-full items-center justify-center p-6 text-center text-resist-dim">The map couldn't load. Check the Google Maps key.</div>;
+  }
+  if (!isLoaded) {
+    return <div className="flex h-full items-center justify-center text-resist-dim">Loading map…</div>;
+  }
+
+  const sel = selected ? coords(selected) : null;
+  return (
+    <>
+      <GoogleMap
+        mapContainerStyle={{ width: '100%', height: '100%' }}
+        center={DEFAULT_CENTER}
+        zoom={5}
+        onLoad={onLoad}
+        onClick={onClear}
+        options={{ styles: MAP_STYLES, disableDefaultUI: true, clickableIcons: false }}
+      >
+        {places.map((p) => {
+          const c = coords(p)!;
+          const active = selected?._id === p._id;
+          return (
+            <Marker
+              key={p._id}
+              position={c}
+              title={plainText(p.name)}
+              onClick={() => onSelect(p)}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: '#a3262a',
+                fillOpacity: 1,
+                strokeColor: active ? '#d9a11e' : '#f2f3f6',
+                strokeWeight: active ? 4 : 2.5,
+                scale: active ? 10 : 7,
+              }}
+            />
+          );
+        })}
+        {selected && sel && (
+          <InfoWindow position={sel} onCloseClick={onClear}>
+            <div className="max-w-[220px] font-sans text-iron">
+              <p className="font-display text-lg leading-tight">{plainText(selected.name)}</p>
+              <p className="text-sm text-iron-2">{selected.city}</p>
+              <Link to={`/place/${selected._id}`} className="ink-link mt-1 inline-block text-sm">
+                Open place
+              </Link>
+            </div>
+          </InfoWindow>
+        )}
+      </GoogleMap>
+      <div className="absolute right-4 top-6 flex flex-col gap-1.5">
+        <MapButton label="Zoom in" onClick={() => map?.setZoom((map.getZoom() || 5) + 1)}>
+          <Plus size={18} aria-hidden="true" />
+        </MapButton>
+        <MapButton label="Zoom out" onClick={() => map?.setZoom((map.getZoom() || 5) - 1)}>
+          <Minus size={18} aria-hidden="true" />
+        </MapButton>
+        <MapButton label={locating ? 'Finding you' : 'Show my location'} onClick={locate}>
+          <LocateFixed size={18} aria-hidden="true" />
+        </MapButton>
+      </div>
+    </>
+  );
+}
+
+function MapButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="inline-flex h-11 w-11 items-center justify-center rounded-[3px] border-[1.5px] border-iron bg-paper text-iron hover:bg-cotton"
+    >
+      {children}
+    </button>
+  );
+}
+
+const MAP_STYLES: google.maps.MapTypeStyle[] = [
+  { elementType: 'geometry', stylers: [{ color: '#eff1f2' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#4b4640' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#eff1f2' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#fafbfc' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#d4d7d9' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c4c8dc' }] },
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#868b91' }] },
 ];
 
 export default ExploreMap;

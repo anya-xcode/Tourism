@@ -10,6 +10,7 @@ import { NavigationService } from '../services/NavigationService';
 import { BookmarkService } from '../services/BookmarkService';
 import { FlagService } from '../services/FlagService';
 import { AIService } from '../services/AIService';
+import { StatsService } from '../services/StatsService';
 import Logger from '../config/Logger';
 import ConfigManager from '../config/ConfigManager';
 import NotificationSubject, { LogObserver } from './NotificationObserver';
@@ -78,6 +79,10 @@ class ServiceFactory {
 
   public getAIService(): AIService {
     return this.getOrCreate('ai', () => new AIService());
+  }
+
+  public getStatsService(): StatsService {
+    return this.getOrCreate('stats', () => new StatsService());
   }
 
   // ─── Singleton Accessors ──────────────────────────────

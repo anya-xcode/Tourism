@@ -10,6 +10,8 @@ export interface IUser extends Document {
   preferences: string[];
   city: string;
   googleId?: string;
+  /** Synthetic account created by the dev seed; the UI labels its contributions */
+  isSample: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,8 +26,19 @@ const UserSchema = new Schema<IUser>(
     preferences: [{ type: String }],
     city: { type: String, default: '' },
     googleId: { type: String, default: null },
+    isSample: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    // Never send the password hash (or googleId) to clients
+    toJSON: {
+      transform: (_doc, ret: Record<string, any>) => {
+        delete ret.password;
+        delete ret.googleId;
+        return ret;
+      },
+    },
+  }
 );
 
 UserSchema.index({ city: 1 });
