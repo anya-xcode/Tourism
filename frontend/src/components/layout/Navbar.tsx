@@ -1,298 +1,201 @@
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Globe, LogOut, Menu, X, User, Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { LogOut, Menu, Plus, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { BlockMark, FringeBand } from '../print/Print';
 
-const AUTH_ROUTES = ['/login', '/register'];
+const LINKS = [
+  { name: 'Discover', path: '/', end: true },
+  { name: 'All places', path: '/uploads', end: false },
+  { name: 'Map', path: '/map', end: false },
+];
+
+/** Pages whose first band is indigo, so the masthead flows straight into it. */
+const DYED_TOPS = ['/', '/uploads', '/add-place', '/profile'];
 
 const Navbar = () => {
   const { user, logout } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
-  const onAuthPage = AUTH_ROUTES.includes(location.pathname);
-  const transparentHero = onAuthPage && !scrolled;
+  const { pathname } = useLocation();
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const flowsIntoDye = DYED_TOPS.includes(pathname);
+
+  // Close the menu when the route changes (state adjusted during render, not in an effect)
+  const [menuPath, setMenuPath] = useState(pathname);
+  if (menuPath !== pathname) {
+    setMenuPath(pathname);
+    setOpen(false);
+  }
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
-    setScrolled(window.scrollY > 20);
-  }, [location.pathname]);
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        menuButton.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
-    setIsOpen(false);
+    navigate('/');
   };
 
-  const navShell = transparentHero
-    ? 'h-[var(--header-height)] border-b border-white/15 bg-white/5 shadow-none backdrop-blur-md'
-    : scrolled
-      ? 'h-[70px] glass-panel border-b border-white/30'
-      : 'h-[var(--header-height)] glass border-b border-white/20';
-
-  const linkBase = transparentHero
-    ? 'text-sm font-600 transition-all relative group py-2 text-white/90 hover:text-cyan-100'
-    : 'text-sm font-600 transition-all relative group py-2';
+  const firstName = user?.name?.split(' ')[0] ?? '';
 
   return (
-    <motion.nav 
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${navShell}`}
-    >
-      <div className="container-custom h-full flex justify-between items-center">
-        {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-3 no-underline group">
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            whileTap={{ scale: 0.95 }}
-            className={`rounded-2xl p-2.5 text-white shadow-lg ${
-              transparentHero
-                ? 'bg-teal-500/90 shadow-[0_0_28px_rgba(45,212,212,0.55),0_8px_24px_-8px_rgba(15,118,110,0.5)]'
-                : 'bg-[var(--primary)] shadow-teal-500/20'
-            }`}
-          >
-            <Globe size={22} />
-          </motion.div>
-          <span
-            className={`font-poppins text-xl font-bold tracking-tight ${
-              transparentHero ? 'text-white drop-shadow-[0_2px_14px_rgba(0,0,0,0.35)]' : ''
-            }`}
-          >
-            <span className={transparentHero ? 'text-cyan-200' : 'text-[var(--primary)]'}>Tourism</span>
-          </span>
-        </Link>
+    <header className="on-dye sticky top-0 z-40">
+      <div className="bg-dye text-resist">
+        <div className="page-wrap flex h-[var(--masthead-h)] items-center justify-between gap-4">
+          <Link to="/" className="flex items-center gap-2.5 rounded-[3px] text-resist no-underline">
+            <BlockMark size={30} />
+            <span className="font-display text-[1.45rem] leading-none tracking-[-0.01em]">Travel Explorer</span>
+          </Link>
 
-        {/* Desktop Navigation */}
-        <div className="hidden lg:flex items-center gap-10">
-          {[
-            { name: 'Explore', path: '/' },
-            { name: 'Experiences', path: '/uploads' },
-            { name: 'Global Map', path: '/map' }
-          ].map((link) => (
-            <NavLink 
-              key={link.path}
-              to={link.path} 
-              className={({ isActive }) =>
-                `${linkBase} ${
-                  transparentHero
-                    ? isActive
-                      ? 'font-bold text-cyan-50'
-                      : ''
-                    : isActive
-                      ? 'text-[var(--primary)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--primary)]'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {link.name}
-                  {isActive && (
-                    <motion.div
-                      layoutId="navbar-indicator"
-                      className={`absolute bottom-0 left-0 right-0 h-1 rounded-full ${
-                        transparentHero ? 'bg-cyan-200' : 'bg-[var(--primary)]'
-                      }`}
-                    />
-                  )}
-                  {!isActive && (
-                     <span
-                      className={`absolute bottom-0 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full transition-opacity ${
-                        transparentHero ? 'bg-cyan-200' : 'bg-[var(--primary)]'
-                      } opacity-0 group-hover:opacity-100`}
-                    />
-                  )}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </div>
-
-        {/* Action Buttons & Profile */}
-        <div className="hidden lg:flex items-center gap-5">
-          {user ? (
-            <div className="flex items-center gap-4">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link
-                  to="/add-place"
-                  className={`flex items-center gap-2 rounded-xl px-5 py-2.5 font-bold text-sm transition-all shadow-lg ${
-                    transparentHero
-                      ? 'bg-white/20 text-white hover:bg-white/30 border border-white/25 backdrop-blur-md'
-                      : 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white hover:brightness-110 shadow-teal-500/20'
-                  }`}
-                >
-                  <Plus size={18} strokeWidth={3} />
-                  <span>Share Place</span>
-                </Link>
-              </motion.div>
-              
-              <Link
-                to="/profile"
-                className={`flex items-center gap-3 rounded-full border py-1.5 pl-1 pr-4 transition-all hover:scale-105 ${
-                  transparentHero
-                    ? 'border-white/25 bg-white/15 hover:border-white/40'
-                    : 'bg-[var(--background-subtle)] border-[var(--border)] hover:border-[var(--primary)]'
-                }`}
+          <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
+            {LINKS.map((link) => (
+              <NavLink
+                key={link.path}
+                to={link.path}
+                end={link.end}
+                className={({ isActive }) =>
+                  `relative rounded-[3px] px-3 py-2 text-[0.98rem] font-semibold no-underline transition-colors ${
+                    isActive ? 'text-resist' : 'text-resist-dim hover:text-resist'
+                  }`
+                }
               >
-                <div
-                  className={`flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ${
-                    transparentHero ? 'bg-white/20 text-white' : 'bg-[var(--primary-soft)] text-[var(--primary)]'
-                  }`}
-                >
-                  {user.avatar ? <img src={user.avatar} alt="" className="h-full w-full object-cover" /> : <User size={16} />}
-                </div>
-                <span
-                  className={`text-xs font-bold ${transparentHero ? 'text-white/95' : 'text-[var(--text-secondary)]'}`}
-                >
-                  {user.name.split(' ')[0]}
-                </span>
-              </Link>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={handleLogout}
-                className={`p-2 transition-colors ${
-                  transparentHero
-                    ? 'text-white/75 hover:text-cyan-100'
-                    : 'text-[var(--text-light)] hover:text-[var(--primary)]'
-                }`}
-                title="Log Out"
-                type="button"
-              >
-                <LogOut size={20} />
-              </motion.button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link
-                  to="/login"
-                  className={`btn px-5 font-bold text-sm ${
-                    transparentHero
-                      ? 'btn-ghost border-0 bg-white/10 text-white hover:bg-white/20 hover:text-white'
-                      : 'btn-ghost'
-                  }`}
-                >
-                  Sign In
-                </Link>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link
-                  to="/register"
-                  className={`btn px-7 py-2.5 text-sm font-bold shadow-teal ${
-                    transparentHero
-                      ? 'border border-white/25 bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:brightness-110'
-                      : 'btn-primary'
-                  }`}
-                >
-                  Join Community
-                </Link>
-              </motion.div>
-            </div>
-          )}
-        </div>
-
-        {/* Mobile Toggle */}
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          className={`rounded-xl p-2.5 transition-all lg:hidden ${
-            transparentHero
-              ? 'text-white hover:bg-white/15'
-              : 'text-[var(--text)] hover:bg-[var(--primary-soft)]'
-          }`}
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          aria-expanded={isOpen}
-        >
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
-        </motion.button>
-      </div>
-
-      {/* Mobile Sidebar - Redesigned with Glassmorphism */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 lg:hidden"
-          >
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-[var(--text)]/20 backdrop-blur-sm" 
-              onClick={() => setIsOpen(false)} 
-            />
-            <motion.div 
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute right-0 top-0 h-full w-[280px] bg-white shadow-2xl flex flex-col"
-            >
-              <div className="p-8 pb-10 border-b border-[var(--border-light)] mb-6">
-                <div className="flex items-center gap-3 mb-10">
-                  <div className="p-2 bg-[var(--primary)] rounded-xl text-white">
-                    <Globe size={18} />
-                  </div>
-                  <span className="font-poppins font-bold text-lg">Tourism</span>
-                </div>
-                
-                <div className="space-y-6">
-                  {[
-                    { name: 'Explore', path: '/' },
-                    { name: 'Experiences Feed', path: '/uploads' },
-                    { name: 'Interactive Map', path: '/map' },
-                    ...(user ? [{ name: 'Share a Place', path: '/add-place' }] : [])
-                  ].map((link) => (
-                    <NavLink 
-                      key={link.path}
-                      to={link.path} 
-                      onClick={() => setIsOpen(false)}
-                      className={({isActive}) => `flex items-center justify-between font-bold text-sm transition-all ${
-                        isActive ? 'text-[var(--primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--primary)]'
-                      }`}
-                    >
-                      {link.name}
-                      <div className={`w-1.5 h-1.5 rounded-full bg-[var(--primary)] transition-opacity opacity-0`} />
-                    </NavLink>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-8 mt-auto border-t border-[var(--border-light)] gap-4 flex flex-col">
-                {!user ? (
+                {({ isActive }) => (
                   <>
-                    <Link to="/login" onClick={() => setIsOpen(false)} className="btn btn-outline w-full justify-center">Sign In</Link>
-                    <Link to="/register" onClick={() => setIsOpen(false)} className="btn btn-primary w-full justify-center">Get Started</Link>
+                    {link.name}
+                    <span
+                      aria-hidden="true"
+                      className={`absolute inset-x-3 -bottom-0.5 h-[3px] rounded-full bg-turmeric transition-transform duration-200 ease-[var(--ease-press)] ${
+                        isActive ? 'scale-x-100' : 'scale-x-0'
+                      }`}
+                    />
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="hidden items-center gap-2 md:flex">
+            {user ? (
+              <>
+                <Link to="/add-place" className="btn-ink min-h-[40px] px-4 py-2 text-[0.92rem]">
+                  <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
+                  Share a place
+                </Link>
+                <Link
+                  to="/profile"
+                  className="ml-1 flex items-center gap-2 rounded-[3px] px-2 py-1.5 text-resist no-underline hover:bg-dye-raised"
+                >
+                  <Avatar name={user.name} src={user.avatar} />
+                  <span className="text-[0.95rem] font-semibold">{firstName}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-[3px] text-resist-dim transition-colors hover:bg-dye-raised hover:text-resist"
+                  aria-label="Sign out"
+                  title="Sign out"
+                >
+                  <LogOut size={18} aria-hidden="true" />
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="rounded-[3px] px-3 py-2 text-[0.98rem] font-semibold text-resist no-underline hover:underline">
+                  Sign in
+                </Link>
+                <Link to="/register" className="btn-ink min-h-[40px] px-4 py-2 text-[0.92rem]">
+                  Join
+                </Link>
+              </>
+            )}
+          </div>
+
+          <button
+            ref={menuButton}
+            type="button"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-[3px] text-resist hover:bg-dye-raised md:hidden"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-controls="mobile-menu"
+            aria-label={open ? 'Close menu' : 'Open menu'}
+          >
+            {open ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
+          </button>
+        </div>
+
+        {open && (
+          <div id="mobile-menu" className="border-t border-resist/15 md:hidden">
+            <nav aria-label="Main" className="page-wrap flex flex-col py-3">
+              {[...LINKS, ...(user ? [{ name: 'Your profile', path: '/profile', end: false }] : [])].map((link) => (
+                <NavLink
+                  key={link.path}
+                  to={link.path}
+                  end={link.end}
+                  className={({ isActive }) =>
+                    `flex min-h-[48px] items-center justify-between rounded-[3px] px-2 text-lg font-semibold no-underline ${
+                      isActive ? 'text-resist' : 'text-resist-dim'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {link.name}
+                      {isActive && <span aria-hidden="true" className="h-2 w-2 rotate-45 bg-turmeric" />}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+              <div className="mt-3 flex flex-col gap-2 border-t border-resist/15 pt-4">
+                {user ? (
+                  <>
+                    <Link to="/add-place" className="btn-ink w-full">
+                      <Plus size={16} strokeWidth={2.5} aria-hidden="true" /> Share a place
+                    </Link>
+                    <button type="button" onClick={handleLogout} className="btn-line-dye w-full">
+                      <LogOut size={16} aria-hidden="true" /> Sign out
+                    </button>
                   </>
                 ) : (
-                  <button 
-                    onClick={handleLogout} 
-                    className="btn btn-ghost w-full justify-center text-[var(--primary)] font-bold gap-3"
-                  >
-                    <LogOut size={18} /> Sign Out
-                  </button>
+                  <>
+                    <Link to="/register" className="btn-ink w-full">
+                      Join Travel Explorer
+                    </Link>
+                    <Link to="/login" className="btn-line-dye w-full">
+                      Sign in
+                    </Link>
+                  </>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
+            </nav>
+          </div>
         )}
-      </AnimatePresence>
-    </motion.nav>
+      </div>
+      {/* Backed in cotton so content scrolling under the sticky masthead never shows through the teeth */}
+      {!flowsIntoDye && <FringeBand edge="bottom" backing="var(--color-cotton)" className="pointer-events-none -mb-5" />}
+    </header>
   );
 };
 
-export default Navbar;
+export function Avatar({ name, src, size = 30 }: { name: string; src?: string; size?: number }) {
+  const initial = (name || '?').trim().charAt(0).toUpperCase();
+  return (
+    <span
+      className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border-[1.5px] border-resist/60 bg-madder font-display text-resist"
+      style={{ width: size, height: size, fontSize: size * 0.5 }}
+      aria-hidden="true"
+    >
+      {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : initial}
+    </span>
+  );
+}
 
+export default Navbar;

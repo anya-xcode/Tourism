@@ -1,130 +1,105 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, MapPin, Clock, Heart } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { getOptimizedUrl } from '../../utils/cloudinaryUtils';
+import { Bookmark, MapPin } from 'lucide-react';
+import type { IPlace } from '../../types';
+import { FactBlock } from '../print/FactBlock';
+import { PlaceArt, Stamp } from '../print/Print';
+import { plainText, sizedPhoto } from '../../lib/format';
+import { useSavedPlaces } from '../../context/SavedPlacesContext';
 
-interface PlaceCardProps {
-  place: {
-    _id: string;
-    name: string;
-    description: string;
-    city: string;
-    photos: string[];
-    averageRating: number;
-    totalReviews: number;
-    category: string;
-    budgetRange: string;
-    suggestedDurationMinutes: number;
-  };
-}
+type CardPlace = Pick<
+  IPlace,
+  | '_id'
+  | 'name'
+  | 'city'
+  | 'category'
+  | 'photos'
+  | 'budgetRange'
+  | 'operatingHours'
+  | 'suggestedDurationMinutes'
+  | 'averageRating'
+  | 'totalReviews'
+>;
 
-const PlaceCard = ({ place }: PlaceCardProps) => {
-  const [liked, setLiked] = useState(false);
-  const defaultImage = "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=600";
-  const rawImage = place.photos?.[0] || defaultImage;
-  const imageSource = getOptimizedUrl(rawImage);
+/**
+ * A printed swatch: the place's photo, its name, and the same fact block
+ * every other place carries.
+ */
+const PlaceCard = ({ place, priority = false }: { place: CardPlace; priority?: boolean }) => {
+  const { isSaved, toggle } = useSavedPlaces();
+  const saved = isSaved(place._id);
+  const photo = sizedPhoto(place.photos?.[0], 720);
+  const name = plainText(place.name);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', damping: 22, stiffness: 260 }}
-      className="h-full block"
-    >
-      <Link to={`/place/${place._id}`} className="group no-underline block h-full">
-        <div
-          className="h-full flex flex-col rounded-[20px] overflow-hidden bg-white border border-gray-100 transition-all duration-500"
-          style={{
-            boxShadow: '0 2px 16px 0 rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)',
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLDivElement).style.boxShadow = '0 20px 48px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(46,144,250,0.08)';
-            (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-6px)';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 16px 0 rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)';
-            (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
-          }}
-        >
-          {/* Image Section */}
-          <div className="relative aspect-[3/4] overflow-hidden">
-            <img
-              src={imageSource}
-              alt={place.name}
-              loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-            />
+    <article className="group relative flex h-full flex-col rounded-[3px] border border-rule bg-paper has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-madder transition-colors duration-200 hover:border-iron">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-t-[2px] bg-dye">
+        {photo ? (
+          <img
+            src={photo}
+            alt=""
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
+            className="h-full w-full object-cover transition-transform duration-500 ease-[var(--ease-press)] group-hover:scale-[1.03]"
+          />
+        ) : (
+          <PlaceArt name={name} />
+        )}
+        <span className="absolute left-3 top-3 rounded-[2px] bg-dye px-2 py-0.5 text-xs font-bold uppercase tracking-[0.08em] text-resist">
+          {place.category}
+        </span>
+        {saved && (
+          <Stamp className="absolute bottom-3 right-3" rotate={-8}>
+            Saved
+          </Stamp>
+        )}
+      </div>
 
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
-
-            {/* Category badge */}
-            <div className="absolute top-3.5 left-3.5 z-10">
-              <span
-                className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.08em] backdrop-blur-xl border border-white/20"
-                style={{ background: 'rgba(255,255,255,0.18)', color: '#fff' }}
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-display text-[1.45rem] leading-[1.15] text-iron">
+              <Link
+                to={`/place/${place._id}`}
+                className="outline-none after:absolute after:inset-0 after:content-[''] focus-visible:underline"
               >
-                {place.category}
-              </span>
-            </div>
-
-            {/* Heart button */}
-            <motion.button
-              whileTap={{ scale: 0.8 }}
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLiked(!liked); }}
-              className="absolute top-3.5 right-3.5 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-xl border border-white/20 transition-all"
-              style={{ background: liked ? 'rgba(239,68,68,0.85)' : 'rgba(255,255,255,0.18)' }}
-            >
-              <Heart
-                size={15}
-                className={liked ? 'text-white fill-white' : 'text-white'}
-              />
-            </motion.button>
-
-            {/* Bottom info overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 z-10">
-              <h3 className="font-poppins font-bold text-[17px] text-white leading-tight mb-1.5 line-clamp-1 drop-shadow-sm">
-                {place.name}
-              </h3>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-white/80">
-                  <MapPin size={12} />
-                  <span className="text-xs font-semibold">{place.city}</span>
-                </div>
-                <div className="flex items-center gap-1 bg-white/15 backdrop-blur-md rounded-full px-2 py-0.5">
-                  <Star size={11} className="text-amber-400 fill-amber-400" />
-                  <span className="text-[11px] font-bold text-white">{place.averageRating || '4.8'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Content Section */}
-          <div className="p-4 flex-1 flex flex-col gap-2.5">
-            <p className="text-[13px] text-gray-500 line-clamp-2 leading-relaxed font-medium">
-              {place.description}
+                {name}
+              </Link>
+            </h3>
+            <p className="mt-1 flex items-center gap-1 text-[0.95rem] text-iron-2">
+              <MapPin size={14} aria-hidden="true" className="shrink-0" />
+              {place.city}
             </p>
-
-            {/* Details Footer */}
-            <div className="mt-auto pt-3 flex items-center justify-between border-t border-gray-100">
-              <div className="flex items-center gap-1.5 text-gray-400">
-                <Clock size={13} />
-                <span className="text-[11px] font-semibold">{place.suggestedDurationMinutes} mins</span>
-              </div>
-
-              <span
-                className="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
-                style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
-              >
-                {place.budgetRange}
-              </span>
-            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => toggle(place._id)}
+            aria-pressed={saved}
+            aria-label={saved ? `Remove ${name} from saved places` : `Save ${name}`}
+            className={`relative z-10 -mr-1 -mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[3px] border-[1.5px] transition-colors ${
+              saved
+                ? 'border-madder bg-madder text-resist'
+                : 'border-transparent text-iron-2 hover:border-iron hover:text-iron'
+            }`}
+          >
+            <Bookmark size={18} className={saved ? 'fill-current' : ''} aria-hidden="true" />
+          </button>
         </div>
-      </Link>
-    </motion.div>
+        <FactBlock place={place} className="mt-auto" />
+      </div>
+    </article>
   );
 };
 
 export default PlaceCard;
+
+/** Loading placeholder with the swatch's proportions. */
+export const PlaceCardSkeleton = () => (
+  <div className="flex flex-col rounded-[3px] border border-rule bg-paper" aria-hidden="true">
+    <div className="skeleton aspect-[4/3] rounded-t-[2px]" />
+    <div className="flex flex-col gap-3 p-4">
+      <div className="skeleton h-6 w-3/4 rounded-[2px]" />
+      <div className="skeleton h-4 w-1/3 rounded-[2px]" />
+      <div className="skeleton mt-2 h-[74px] rounded-[3px]" />
+    </div>
+  </div>
+);

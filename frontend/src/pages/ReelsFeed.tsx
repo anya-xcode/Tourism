@@ -1,249 +1,286 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Compass, ChevronDown, Filter, Plus } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Plus, Search } from 'lucide-react';
+import PlaceCard, { PlaceCardSkeleton } from '../components/places/PlaceCard';
+import { InkChip } from '../components/print/InkChip';
+import { FringeBand, LatticeBand, LatticeField } from '../components/print/Print';
 import { PlaceService } from '../services/PlaceService';
-import PlaceCard from '../components/places/PlaceCard';
-import { PlaceCategory } from '../types';
+import { StatsService } from '../services/StatsService';
+import { PlaceCategory, type ICityCount, type IPlace } from '../types';
+import { errorMessage, plural } from '../lib/format';
 
-const CITIES = ['All', 'Mumbai', 'Pune', 'Delhi', 'Bangalore', 'Goa'];
-const CATEGORIES = ['All', ...Object.values(PlaceCategory)];
+const CATEGORIES = Object.values(PlaceCategory);
+const PAGE_SIZE = 12;
 
+/**
+ * All places — the full collection with city, category, search and sort,
+ * kept in the URL so filtered views can be linked and shared.
+ */
 const ReelsFeed = () => {
-  const [places, setPlaces] = useState<any[]>([]);
+  const [params, setParams] = useSearchParams();
+  const city = params.get('city') || '';
+  const category = params.get('category') || '';
+  const query = params.get('search') || '';
+  const sort = params.get('sort') === 'rating' ? 'rating' : 'newest';
+
+  const [draft, setDraft] = useState(query);
+  const [places, setPlaces] = useState<IPlace[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [activeCity, setActiveCity] = useState('All');
-  const [sortBy, setSortBy] = useState('newest');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState('');
+  const [cities, setCities] = useState<ICityCount[]>([]);
 
+  useEffect(() => setDraft(query), [query]);
+
+  const update = useCallback(
+    (key: string, value: string) => {
+      const next = new URLSearchParams(params);
+      if (value) next.set(key, value);
+      else next.delete(key);
+      setParams(next, { replace: true });
+    },
+    [params, setParams],
+  );
+
+  // Debounced search into the URL
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchData();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [activeCategory, activeCity, sortBy, searchTerm]);
+    if (draft.trim() === query) return;
+    const t = setTimeout(() => update('search', draft.trim()), 350);
+    return () => clearTimeout(t);
+  }, [draft, query, update]);
 
-  const fetchData = async () => {
+  const fetchPage = useCallback(
+    async (pageNum: number) => {
+      return PlaceService.getPlaces({
+        city: city || undefined,
+        category: (category || undefined) as PlaceCategory | undefined,
+        search: query || undefined,
+        sortBy: sort,
+        page: pageNum,
+        limit: PAGE_SIZE,
+      });
+    },
+    [city, category, query, sort],
+  );
+
+  const load = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      const filters: any = {
-        sortBy: sortBy === 'rating' ? 'rating' : 'newest',
-      };
-      if (activeCategory !== 'All') filters.category = activeCategory;
-      if (activeCity !== 'All') filters.city = activeCity.toLowerCase();
-      if (searchTerm) filters.search = searchTerm;
-
-      const res = await PlaceService.getPlaces(filters);
-      // Backend returns { places, total }
-      setPlaces(res?.places || []);
+      const res = await fetchPage(1);
+      setPlaces(res.places || []);
+      setTotal(res.total || 0);
+      setPage(1);
     } catch (err) {
-      console.error('Failed to fetch experiences', err);
+      setError(errorMessage(err, 'Places could not be loaded.'));
     } finally {
       setLoading(false);
     }
+  }, [fetchPage]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    StatsService.getCommunity()
+      .then((s) => setCities(s.topCities))
+      .catch(() => setCities([]));
+  }, []);
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const res = await fetchPage(page + 1);
+      setPlaces((cur) => [...cur, ...(res.places || [])]);
+      setPage((p) => p + 1);
+    } catch (err) {
+      setError(errorMessage(err, 'More places could not be loaded.'));
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
+  const hasFilters = Boolean(city || category || query);
+  const clearAll = () => {
+    setDraft('');
+    setParams(sort === 'rating' ? { sort: 'rating' } : {}, { replace: true });
+  };
+
+  const summary = loading
+    ? 'Looking…'
+    : hasFilters
+      ? `${plural(total, 'place')}${category ? ` · ${category}` : ''}${city ? ` · ${city}` : ''}${query ? ` · “${query}”` : ''}`
+      : `${plural(total, 'place')} shared so far`;
+
   return (
-    <div style={{ minHeight: '100vh', background: '#fafbfc', paddingBottom: 80 }}>
-      
-      {/* ─── HEADER & FILTERS ─── */}
-      <div style={{
-        position: 'sticky', top: 'var(--header-height)', zIndex: 40,
-        background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)',
-        borderBottom: '1px solid #f1f5f9',
-      }}>
-        <div className="container-custom" style={{ maxWidth: 1280, padding: '20px 24px' }}>
-          
-          {/* Row 1: Title + Search + CTA */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 0 }}>
-              <h1 className="font-poppins" style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>
-                Community Experiences
+    <>
+      <section className="on-dye relative bg-dye text-resist" aria-labelledby="browse-title">
+        <LatticeField opacity={0.1} />
+        {/* The ornate end-band the cloth opens with */}
+        <LatticeBand className="relative" />
+        <div className="page-wrap relative pb-10 pt-8 md:pb-12">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <h1 id="browse-title" className="font-display text-[2.6rem] leading-none text-resist md:text-[3.4rem]">
+                All places
               </h1>
-              <p style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, margin: '4px 0 0' }}>
-                Discover handpicked locations updated by travelers.
+              <p className="tabular mt-3 text-[1.05rem] text-resist-dim" aria-live="polite">
+                {summary}
               </p>
             </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 auto', maxWidth: 480, justifyContent: 'flex-end' }}>
-              {/* Search Bar */}
-              <div style={{ position: 'relative', flex: 1, maxWidth: 320 }}>
-                <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1', pointerEvents: 'none' }} />
-                <input 
-                  type="text" 
-                  placeholder="Search destinations..." 
-                  style={{
-                    width: '100%', background: '#f8fafc', border: '1.5px solid #f1f5f9',
-                    borderRadius: 12, padding: '10px 16px 10px 40px', fontSize: 13, fontWeight: 500,
-                    outline: 'none', color: '#0f172a', transition: 'all 0.2s',
-                    fontFamily: 'Inter, sans-serif',
-                  }}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.background = '#fff'; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = '#f1f5f9'; e.currentTarget.style.background = '#f8fafc'; }}
-                />
-              </div>
+            <Link to="/add-place" className="btn-line-dye">
+              <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
+              Share a place
+            </Link>
+          </div>
 
-              {/* Add Place Button */}
-              <Link to="/add-place" className="no-underline" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '10px 18px', background: '#0f172a', color: '#fff',
-                borderRadius: 12, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
-                transition: 'all 0.2s', flexShrink: 0,
-              }}>
-                <Plus size={16} strokeWidth={3} />
-                <span className="hidden sm:inline">Add Place</span>
-              </Link>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1 sm:max-w-xl">
+              <label htmlFor="browse-search" className="sr-only">
+                Search places
+              </label>
+              <Search
+                size={18}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-iron-3"
+                aria-hidden="true"
+              />
+              <input
+                id="browse-search"
+                type="search"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Search names, descriptions and tags"
+                className="h-12 w-full rounded-[3px] border-2 border-resist bg-paper pl-11 pr-3 text-base text-iron outline-none focus:border-turmeric"
+                autoComplete="off"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="browse-sort" className="text-[0.95rem] font-semibold text-resist-dim">
+                Sort
+              </label>
+              <select
+                id="browse-sort"
+                value={sort}
+                onChange={(e) => update('sort', e.target.value === 'rating' ? 'rating' : '')}
+                className="field h-12 min-h-0 w-auto border-2 border-resist py-0"
+              >
+                <option value="newest">Newest first</option>
+                <option value="rating">Highest rated</option>
+              </select>
             </div>
           </div>
-          
-          {/* Row 2: Category Pills + Dropdown Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            
-            {/* City Pills */}
-            <div className="scrollbar-hide" style={{ display: 'flex', gap: 6, overflowX: 'auto', flex: '1 1 auto', paddingBottom: 2 }}>
-              {CITIES.map(city => (
-                <button 
-                  key={city}
-                  onClick={() => setActiveCity(city)}
-                  style={{
-                    whiteSpace: 'nowrap', padding: '7px 14px', borderRadius: 9,
-                    fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer',
-                    transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.04em',
-                    ...(activeCity === city
-                      ? { background: '#0f172a', color: '#fff', boxShadow: '0 2px 8px -2px rgba(15,23,42,0.2)' }
-                      : { background: '#fff', color: '#64748b', boxShadow: '0 1px 3px 0 rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.04)' }
-                    ),
-                  }}
-                >
-                  {city}
-                </button>
+        </div>
+        <FringeBand edge="bottom" className="absolute inset-x-0 top-full" />
+      </section>
+
+      <div className="page-wrap pb-24 pt-12">
+        <div className="flex flex-col gap-4">
+          {cities.length > 0 && (
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
+              <span className="print-label w-20 shrink-0" id="city-filter-label">
+                City
+              </span>
+              <div
+                role="group"
+                aria-labelledby="city-filter-label"
+                className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_calc(100%_-_2.5rem),transparent)] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:[mask-image:none]"
+              >
+                <InkChip active={!city} onClick={() => update('city', '')}>
+                  Every city
+                </InkChip>
+                {cities.map((c) => (
+                  <InkChip
+                    key={c.city}
+                    active={city.toLowerCase() === c.city.toLowerCase()}
+                    onClick={() => update('city', city.toLowerCase() === c.city.toLowerCase() ? '' : c.city)}
+                  >
+                    {c.city}
+                    <span className="tabular text-sm opacity-70">{c.count}</span>
+                  </InkChip>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
+            <span className="print-label w-20 shrink-0" id="category-filter-label">
+              Category
+            </span>
+            <div
+              role="group"
+              aria-labelledby="category-filter-label"
+              className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_calc(100%_-_2.5rem),transparent)] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:[mask-image:none]"
+            >
+              <InkChip active={!category} onClick={() => update('category', '')}>
+                Every category
+              </InkChip>
+              {CATEGORIES.map((c) => (
+                <InkChip key={c} active={category === c} onClick={() => update('category', category === c ? '' : c)}>
+                  {c}
+                </InkChip>
               ))}
             </div>
-            
-            <div style={{ width: 1, height: 28, background: '#e2e8f0', flexShrink: 0 }} className="hidden md:block" />
-            
-            {/* Dropdown Filters */}
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              <div style={{ position: 'relative' }}>
-                <Compass size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#6366f1', pointerEvents: 'none' }} />
-                <select 
-                  style={{
-                    background: '#fff', border: '1.5px solid #f1f5f9', borderRadius: 9,
-                    padding: '7px 28px 7px 30px', fontSize: 11, fontWeight: 700,
-                    color: '#475569', appearance: 'none', cursor: 'pointer', outline: 'none',
-                    textTransform: 'uppercase', letterSpacing: '0.04em',
-                    boxShadow: '0 1px 3px 0 rgba(0,0,0,0.04)',
-                  }}
-                  value={activeCategory}
-                  onChange={(e) => setActiveCategory(e.target.value)}
-                >
-                  <option disabled>Category</option>
-                  {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat === 'All' ? 'All Categories' : cat}</option>)}
-                </select>
-                <ChevronDown size={12} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
-              </div>
-              
-              <div style={{ position: 'relative' }}>
-                <Filter size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
-                <select 
-                  style={{
-                    background: '#fff', border: '1.5px solid #f1f5f9', borderRadius: 9,
-                    padding: '7px 28px 7px 30px', fontSize: 11, fontWeight: 700,
-                    color: '#475569', appearance: 'none', cursor: 'pointer', outline: 'none',
-                    textTransform: 'uppercase', letterSpacing: '0.04em',
-                    boxShadow: '0 1px 3px 0 rgba(0,0,0,0.04)',
-                  }}
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                >
-                  <option value="newest">Latest First</option>
-                  <option value="rating">Top Rated</option>
-                </select>
-                <ChevronDown size={12} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+          </div>
+        </div>
+
+        <div className="mt-10">
+          {error && places.length === 0 ? (
+            <div className="rounded-[3px] border-2 border-iron bg-paper p-8 text-center">
+              <p className="font-display text-2xl text-iron">The places didn't load.</p>
+              <p className="mx-auto mt-2 max-w-md text-iron-2">{error}</p>
+              <button type="button" onClick={load} className="btn-ink mt-5">
+                Try again
+              </button>
+            </div>
+          ) : loading ? (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <PlaceCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : places.length === 0 ? (
+            <div className="rounded-[3px] border-2 border-iron bg-paper p-8 text-center md:p-12">
+              <p className="font-display text-[1.8rem] leading-tight text-iron">No places match these filters.</p>
+              <p className="mx-auto mt-2 max-w-md text-[1.05rem] text-iron-2">
+                Loosen a filter, or share the place you were hoping to find.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                {hasFilters && (
+                  <button type="button" onClick={clearAll} className="btn-line">
+                    Clear filters
+                  </button>
+                )}
+                <Link to="/add-place" className="btn-ink">
+                  Share a place
+                </Link>
               </div>
             </div>
-          </div>
-
+          ) : (
+            <>
+              <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {places.map((place, i) => (
+                  <li key={place._id}>
+                    <PlaceCard place={place} priority={i < 3} />
+                  </li>
+                ))}
+              </ul>
+              {places.length < total && (
+                <div className="mt-10 flex flex-col items-center gap-2">
+                  <button type="button" onClick={loadMore} disabled={loadingMore} className="btn-line min-w-[220px]">
+                    {loadingMore ? 'Loading…' : `Show more places`}
+                  </button>
+                  <p className="tabular text-sm text-iron-3">
+                    Showing {places.length} of {total}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
-      
-      {/* ─── GRID CONTENT ─── */}
-      <div className="container-custom" style={{ maxWidth: 1280, paddingTop: 28 }}>
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" style={{ gap: 20 }}>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-              <div key={i} style={{ borderRadius: 20, overflow: 'hidden', background: '#fff', border: '1px solid #f1f5f9' }} className="animate-pulse">
-                <div style={{ aspectRatio: '3/4', background: '#f1f5f9' }} />
-                <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ height: 12, background: '#f1f5f9', borderRadius: 99, width: '75%' }} />
-                  <div style={{ height: 10, background: '#f8fafc', borderRadius: 99, width: '55%' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : places.length > 0 ? (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-            style={{ gap: 20 }}
-          >
-            <AnimatePresence>
-              {places.map((place, i) => (
-                <motion.div
-                  key={place._id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.95, y: 16 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 16 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25, delay: i * 0.04 }}
-                >
-                  <PlaceCard place={place} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', damping: 20 }}
-            style={{
-              textAlign: 'center', padding: '4rem 2rem',
-              background: '#fff', borderRadius: 24, border: '1px solid #f1f5f9',
-            }}
-          >
-            <div style={{
-              width: 72, height: 72, background: '#f8fafc', borderRadius: 20,
-              border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', margin: '0 auto 20px',
-            }}>
-              <Compass size={32} style={{ color: '#cbd5e1' }} />
-            </div>
-            <h3 className="font-poppins" style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>No experiences found</h3>
-            <p style={{ fontSize: 14, color: '#94a3b8', maxWidth: 380, margin: '0 auto 24px', lineHeight: 1.6, fontWeight: 500 }}>
-              We couldn't find any locations matching your criteria. Try clearing some filters.
-            </p>
-            <button 
-              onClick={() => { setActiveCategory('All'); setActiveCity('All'); setSearchTerm(''); }}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '10px 24px', borderRadius: 12,
-                background: '#0f172a', color: '#fff', fontSize: 13, fontWeight: 700,
-                border: 'none', cursor: 'pointer',
-              }}
-            >
-              Reset Filters
-            </button>
-          </motion.div>
-        )}
-      </div>
-
-    </div>
+    </>
   );
 };
 

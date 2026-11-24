@@ -1,601 +1,404 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Search, MapPin, Users, TrendingUp, Compass, ArrowRight, Globe, Map,
-  Palmtree, UtensilsCrossed, Landmark, Mountain, ShoppingBag, Moon, Sparkles, Plus
-} from 'lucide-react';
-import api from '../services/api';
-import PlaceCard from '../components/places/PlaceCard';
-import { motion, AnimatePresence } from 'framer-motion';
-import type { Variants } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { ArrowRight, CalendarDays, Search, Users } from 'lucide-react';
+import PlaceCard, { PlaceCardSkeleton } from '../components/places/PlaceCard';
+import { FactBlock } from '../components/print/FactBlock';
+import { InkChip } from '../components/print/InkChip';
+import { FringeBand, LatticeBand, LatticeField } from '../components/print/Print';
+import { PlaceService } from '../services/PlaceService';
+import { StatsService } from '../services/StatsService';
+import { VisitService } from '../services/VisitService';
+import { PlaceCategory, type ICommunityStats, type IPlace, type IVisitEvent } from '../types';
+import { errorMessage, formatDate, plainText, plural } from '../lib/format';
 
-const categoryIcons: Record<string, React.ReactNode> = {
-  'All': <Sparkles size={15} />,
-  'Nature': <Palmtree size={15} />,
-  'Food': <UtensilsCrossed size={15} />,
-  'Heritage': <Landmark size={15} />,
-  'Adventure': <Mountain size={15} />,
-  'Shopping': <ShoppingBag size={15} />,
-  'Nightlife': <Moon size={15} />,
-};
-
-const HERO_IMAGES = [
-  'https://images.unsplash.com/photo-1506929562872-bb421503ef21?auto=format&fit=crop&q=80&w=800',
-  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&q=80&w=800',
-  'https://images.unsplash.com/photo-1530789253388-582c481c54b0?auto=format&fit=crop&q=80&w=800',
-  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800',
-];
+const CATEGORIES = ['All', ...Object.values(PlaceCategory)];
 
 const HomePage = () => {
-  const [places, setPlaces] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('All');
+  const [places, setPlaces] = useState<IPlace[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState<ICommunityStats | null>(null);
+  const [events, setEvents] = useState<IVisitEvent[]>([]);
+  const [example, setExample] = useState<IPlace | null>(null);
+  const resultsRef = useRef<HTMLHeadingElement>(null);
 
-  const categories = ['All', 'Nature', 'Food', 'Heritage', 'Adventure', 'Shopping', 'Nightlife'];
+  const filtered = query !== '' || category !== 'All';
+
+  // Debounce typing into the live query
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const loadPlaces = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await PlaceService.getPlaces({
+        search: query || undefined,
+        category: category === 'All' ? undefined : (category as PlaceCategory),
+        limit: filtered ? 12 : 6,
+      });
+      setPlaces(res.places || []);
+      setTotal(res.total || 0);
+    } catch (err) {
+      setError(errorMessage(err, 'Places could not be loaded.'));
+    } finally {
+      setLoading(false);
+    }
+  }, [query, category, filtered]);
 
   useEffect(() => {
-    const fetchPlaces = async () => {
-      try {
-        const params: any = { search };
-        if (activeCategory !== 'All') params.category = activeCategory;
-        const res = await api.get('/places', { params });
-        setPlaces(res.data.places);
-      } catch (err) {
-        console.error('Error fetching places:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    const delayDebounceFn = setTimeout(() => {
-      fetchPlaces();
-    }, 500);
-    return () => clearTimeout(delayDebounceFn);
-  }, [search, activeCategory]);
+    loadPlaces();
+  }, [loadPlaces]);
 
-  const stagger: Variants = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.08 } }
+  useEffect(() => {
+    StatsService.getCommunity().then(setStats).catch(() => setStats(null));
+    VisitService.getUpcoming().then((list) => setEvents(list.slice(0, 3))).catch(() => setEvents([]));
+    // The best-documented place demonstrates the fact block
+    PlaceService.getPlaces({ limit: 40 })
+      .then((res) => {
+        const list = res.places || [];
+        const best = [...list].sort((a, b) => (b.totalReviews || 0) - (a.totalReviews || 0))[0];
+        setExample(best || null);
+      })
+      .catch(() => setExample(null));
+  }, []);
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    setQuery(search.trim());
+    resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const fadeUp: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: 'spring', damping: 22, stiffness: 220 } }
+  const clearFilters = () => {
+    setSearch('');
+    setQuery('');
+    setCategory('All');
   };
+
+  const browseHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (query) params.set('search', query);
+    if (category !== 'All') params.set('category', category);
+    const qs = params.toString();
+    return qs ? `/uploads?${qs}` : '/uploads';
+  }, [query, category]);
+
+  const resultsTitle = filtered
+    ? loading
+      ? 'Searching…'
+      : `${plural(total, 'place')}${category !== 'All' ? ` in ${category}` : ''}${query ? ` matching “${query}”` : ''}`
+    : 'Recently shared';
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      style={{ background: '#fafbfc' }}
-    >
-      {/* ═══════════════════ HERO ═══════════════════ */}
-      <section style={{ position: 'relative', overflow: 'hidden' }}>
-        {/* Full-bleed gradient background */}
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 0,
-          background: 'linear-gradient(135deg, #eef2ff 0%, #e0f2fe 35%, #f0fdfa 65%, #fef3c7 100%)',
-        }} />
-
-        {/* Animated decorative orbs */}
-        <motion.div
-          animate={{ x: [0, 40, 0], y: [0, -25, 0] }}
-          transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-          style={{
-            position: 'absolute', top: '-10%', right: '-5%', width: 520, height: 520, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)', zIndex: 0,
-          }}
-        />
-        <motion.div
-          animate={{ x: [0, -30, 0], y: [0, 35, 0] }}
-          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
-          style={{
-            position: 'absolute', bottom: '-8%', left: '-3%', width: 420, height: 420, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(20,184,166,0.15) 0%, transparent 70%)', zIndex: 0,
-          }}
-        />
-
-        {/* Hero content */}
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-            className="container-custom"
-            style={{ maxWidth: 1200, paddingTop: '4rem', paddingBottom: '5.5rem' }}
-          >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '3rem', alignItems: 'center' }}
-              className="lg:!grid-cols-[1.1fr_0.9fr]"
+    <>
+      {/* ─── The dyed end-band: hook, working search, every category ─── */}
+      <section className="on-dye relative bg-dye text-resist" aria-labelledby="home-title">
+        <LatticeField opacity={0.12} />
+        {/* The ornate end-band the cloth opens with */}
+        <LatticeBand className="relative" />
+        <div className="page-wrap relative pb-[112px] pt-6 sm:pb-[150px] md:pb-[190px] md:pt-9 lg:pt-10">
+          <div className="grid gap-5 lg:grid-cols-[1.25fr_1fr] lg:items-end lg:gap-14">
+            <h1
+              id="home-title"
+              className="max-w-[16ch] font-display text-[2.6rem] leading-[1.02] tracking-[-0.015em] text-resist sm:text-[3.4rem] lg:text-[4.25rem]"
             >
-              {/* Left: Text Content */}
-              <div style={{ maxWidth: 580 }}>
-                {/* Status badge */}
-                <motion.div variants={fadeUp} style={{ marginBottom: '1.75rem' }}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 8,
-                    padding: '6px 14px', borderRadius: 999, fontSize: 11, fontWeight: 700,
-                    letterSpacing: '0.1em', textTransform: 'uppercase' as const,
-                    background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(255,255,255,0.5)', color: '#475569',
-                  }}>
-                    <span style={{ position: 'relative', display: 'flex', width: 8, height: 8 }}>
-                      <span style={{
-                        position: 'absolute', inset: 0, borderRadius: '50%',
-                        background: '#34d399', opacity: 0.6,
-                        animation: 'ping 1.5s cubic-bezier(0,0,0.2,1) infinite',
-                      }} />
-                      <span style={{ position: 'relative', width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
-                    </span>
-                    Community-Powered Discovery
-                  </span>
-                </motion.div>
+              Where to go next, from people who went.
+            </h1>
+            <p className="max-w-[46ch] text-[1.12rem] leading-relaxed text-resist-dim md:text-[1.2rem] lg:pb-2">
+              Landmarks, food lanes and backwater mornings across India — each printed with what it costs, when it's
+              open and how long to stay.
+            </p>
+          </div>
 
-                {/* Heading */}
-                <motion.h1
-                  variants={fadeUp}
-                  className="font-poppins"
-                  style={{
-                    fontSize: 'clamp(2.4rem, 4.5vw, 3.8rem)',
-                    fontWeight: 800, lineHeight: 1.1,
-                    color: '#0f172a', marginBottom: '1.5rem',
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  Discover Places<br />
-                  Through{' '}
-                  <span style={{
-                    background: 'linear-gradient(135deg, #4f46e5, #0ea5e9, #14b8a6)',
-                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                  }}>
-                    Real Stories
-                  </span>
-                </motion.h1>
-
-                {/* Subtitle */}
-                <motion.p
-                  variants={fadeUp}
-                  style={{
-                    fontSize: 17, lineHeight: 1.7, color: '#64748b',
-                    marginBottom: '2rem', maxWidth: 460, fontWeight: 500,
-                  }}
-                >
-                  Explore hidden gems curated by travelers who value authenticity. No ads, no sponsored listings — just honest experiences.
-                </motion.p>
-
-                {/* Search bar */}
-                <motion.div variants={fadeUp} style={{ marginBottom: '2rem' }}>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    background: '#fff', borderRadius: 16, padding: 6,
-                    boxShadow: '0 4px 24px -4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)',
-                    transition: 'box-shadow 0.3s',
-                    maxWidth: 480,
-                  }}>
-                    <div style={{ flex: 1, position: 'relative' }}>
-                      <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                      <input
-                        type="text"
-                        placeholder="Where to next?"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        style={{
-                          width: '100%', border: 'none', background: 'transparent',
-                          padding: '14px 16px 14px 44px', fontSize: 14, fontWeight: 500,
-                          outline: 'none', color: '#0f172a', borderRadius: 12,
-                        }}
-                      />
-                    </div>
-                    <button style={{
-                      background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
-                      color: '#fff', border: 'none', borderRadius: 12,
-                      padding: '12px 28px', fontSize: 13, fontWeight: 700,
-                      cursor: 'pointer', whiteSpace: 'nowrap' as const,
-                      boxShadow: '0 4px 14px -3px rgba(79,70,229,0.4)',
-                      transition: 'all 0.2s',
-                    }}>
-                      Explore
-                    </button>
-                  </div>
-                </motion.div>
-
-                {/* CTA row */}
-                <motion.div variants={fadeUp} style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' as const }}>
-                  <Link
-                    to="/register"
-                    className="no-underline"
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 8,
-                      padding: '12px 24px', borderRadius: 12,
-                      background: '#0f172a', color: '#fff',
-                      fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
-                      boxShadow: '0 4px 12px -2px rgba(15,23,42,0.2)',
-                    }}
-                  >
-                    Start Exploring <ArrowRight size={15} />
-                  </Link>
-                  <Link
-                    to="/map"
-                    className="no-underline"
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 8,
-                      padding: '12px 24px', borderRadius: 12,
-                      background: 'transparent', color: '#475569',
-                      fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
-                      border: '1.5px solid #e2e8f0',
-                    }}
-                  >
-                    <Map size={15} /> Open Map
-                  </Link>
-                </motion.div>
-
-                {/* Trust indicators */}
-                <motion.div
-                  variants={fadeUp}
-                  style={{ display: 'flex', gap: 24, marginTop: '2.5rem', flexWrap: 'wrap' as const }}
-                >
-                  {[
-                    { num: '10K+', label: 'Travelers' },
-                    { num: '500+', label: 'Places' },
-                    { num: '4.9', label: 'Rating' },
-                  ].map((stat) => (
-                    <div key={stat.label} style={{ display: 'flex', flexDirection: 'column' as const }}>
-                      <span style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'Poppins, sans-serif' }}>{stat.num}</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{stat.label}</span>
-                    </div>
-                  ))}
-                </motion.div>
-              </div>
-
-              {/* Right: Image Collage */}
-              <motion.div
-                variants={fadeUp}
-                className="hidden lg:block"
-                style={{ position: 'relative', height: 420 }}
-              >
-                {HERO_IMAGES.map((src, i) => {
-                  const positions = [
-                    { top: 0, left: 0, width: 220, height: 260, rotate: -3, zIndex: 2 },
-                    { top: 20, left: 200, width: 200, height: 240, rotate: 2, zIndex: 3 },
-                    { top: 180, left: 40, width: 190, height: 220, rotate: 1, zIndex: 1 },
-                    { top: 160, left: 230, width: 180, height: 210, rotate: -2, zIndex: 4 },
-                  ];
-                  const pos = positions[i];
-                  return (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 30, rotate: 0 }}
-                      animate={{ opacity: 1, y: 0, rotate: pos.rotate }}
-                      transition={{ delay: 0.3 + i * 0.12, type: 'spring', damping: 20 }}
-                      style={{
-                        position: 'absolute', top: pos.top, left: pos.left,
-                        width: pos.width, height: pos.height, zIndex: pos.zIndex,
-                        borderRadius: 20, overflow: 'hidden',
-                        boxShadow: '0 16px 40px -8px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)',
-                      }}
-                    >
-                      <img src={src} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
+          <form role="search" onSubmit={onSubmit} className="mt-8 flex max-w-2xl flex-col gap-2 sm:flex-row sm:gap-0">
+            <label htmlFor="home-search" className="sr-only">
+              Search places
+            </label>
+            <div className="relative flex-1">
+              <Search
+                size={20}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-iron-3"
+                aria-hidden="true"
+              />
+              <input
+                id="home-search"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Try “sunrise”, “Mughal” or “street food”"
+                className="h-14 w-full rounded-[3px] border-2 border-resist bg-paper pl-12 pr-4 text-[1.05rem] text-iron outline-none focus:border-turmeric sm:rounded-r-none"
+                autoComplete="off"
+              />
             </div>
-          </motion.div>
-        </div>
-      </section>
+            <button type="submit" className="btn-ink h-14 px-7 text-base sm:rounded-l-none">
+              Search places
+            </button>
+          </form>
 
-      {/* ═══════════════════ CATEGORY FILTERS + GRID ═══════════════════ */}
-      <section style={{ paddingTop: '3rem', paddingBottom: '4rem' }}>
-        <div className="container-custom" style={{ maxWidth: 1200 }}>
-          {/* Filter row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap' as const, gap: '1rem' }}>
-            <div>
-              <h2 className="font-poppins" style={{ fontSize: 'clamp(1.4rem, 2.5vw, 1.75rem)', fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>
-                Popular This Season
-              </h2>
-              <p style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                <Compass size={14} style={{ color: '#6366f1' }} />
-                Verified by community explorers
-              </p>
-            </div>
+          {stats && stats.places > 0 && (
+            <p className="tabular mt-4 text-[0.98rem] text-resist-dim">
+              {plural(stats.places, 'place')} in {plural(stats.cities, 'city', 'cities')} ·{' '}
+              {plural(stats.reviews, 'review')} from {plural(stats.travelers, 'traveler')}
+              {/* Its own line on phones, so the wrap never ends a line on a separator */}
+              {stats.sample && (
+                <>
+                  <span className="hidden sm:inline"> · includes sample data</span>
+                  <span className="block sm:hidden">Includes sample data</span>
+                </>
+              )}
+            </p>
+          )}
 
-            {/* Category pills */}
-            <div className="scrollbar-hide" style={{ display: 'flex', gap: 6, overflowX: 'auto' as const, padding: '4px 2px' }}>
-              {categories.map((cat) => (
-                <motion.button
-                  key={cat}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setActiveCategory(cat)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    whiteSpace: 'nowrap' as const, padding: '8px 16px',
-                    borderRadius: 10, fontSize: 12, fontWeight: 600,
-                    border: 'none', cursor: 'pointer', transition: 'all 0.25s',
-                    ...(activeCategory === cat
-                      ? {
-                        background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
-                        color: '#fff',
-                        boxShadow: '0 4px 12px -2px rgba(99,102,241,0.35)',
-                      }
-                      : {
-                        background: '#fff',
-                        color: '#64748b',
-                        boxShadow: '0 1px 3px 0 rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.04)',
-                      }
-                    ),
-                  }}
-                >
-                  {categoryIcons[cat]}
-                  {cat}
-                </motion.button>
+          <div className="mt-5 sm:mt-6" role="group" aria-label="Filter by category">
+            <div className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_calc(100%_-_2.5rem),transparent)] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:[mask-image:none]">
+              {CATEGORIES.map((c) => (
+                <InkChip key={c} tone="dye" active={category === c} onClick={() => setCategory(c)}>
+                  {c === 'All' ? 'All places' : c}
+                </InkChip>
               ))}
             </div>
           </div>
 
-          {/* Places Grid */}
-          <AnimatePresence mode="wait">
-            {loading ? (
-              <motion.div
-                key="skeleton"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
-              >
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} style={{ borderRadius: 20, overflow: 'hidden', background: '#f8fafc' }} className="animate-pulse">
-                    <div style={{ aspectRatio: '3/4', background: '#f1f5f9' }} />
-                    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ height: 12, background: '#f1f5f9', borderRadius: 99, width: '75%' }} />
-                      <div style={{ height: 10, background: '#f1f5f9', borderRadius: 99, width: '55%' }} />
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            ) : places.length > 0 ? (
-              <motion.div
-                key="grid"
-                variants={stagger}
-                initial="hidden"
-                animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
-              >
-                {places.map((place: any) => (
-                  <PlaceCard key={place._id} place={place} />
-                ))}
-              </motion.div>
-            ) : (
-              /* ─── Engaging Empty State ─── */
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: 'spring', damping: 20 }}
-                style={{
-                  textAlign: 'center', padding: '4rem 2rem',
-                  background: 'linear-gradient(135deg, #eef2ff, #f0fdfa, #fefce8)',
-                  borderRadius: 28, border: '1px solid rgba(99,102,241,0.08)',
-                  position: 'relative', overflow: 'hidden',
-                }}
-              >
-                {/* Background decoration */}
-                <div style={{
-                  position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)',
-                }} />
-                <div style={{
-                  position: 'absolute', bottom: -30, left: -30, width: 160, height: 160, borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(20,184,166,0.06) 0%, transparent 70%)',
-                }} />
-
-                {/* Illustration-like icon cluster */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 24, position: 'relative', zIndex: 1 }}>
-                  <motion.div
-                    animate={{ y: [0, -6, 0] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{
-                      width: 56, height: 56, borderRadius: 16,
-                      background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 4px 12px -2px rgba(99,102,241,0.15)',
-                    }}
-                  >
-                    <Globe size={24} style={{ color: '#6366f1' }} />
-                  </motion.div>
-                  <motion.div
-                    animate={{ y: [0, -8, 0] }}
-                    transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
-                    style={{
-                      width: 56, height: 56, borderRadius: 16,
-                      background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 4px 12px -2px rgba(16,185,129,0.15)',
-                      marginTop: 12,
-                    }}
-                  >
-                    <MapPin size={24} style={{ color: '#10b981' }} />
-                  </motion.div>
-                  <motion.div
-                    animate={{ y: [0, -5, 0] }}
-                    transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
-                    style={{
-                      width: 56, height: 56, borderRadius: 16,
-                      background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 4px 12px -2px rgba(245,158,11,0.15)',
-                    }}
-                  >
-                    <Compass size={24} style={{ color: '#f59e0b' }} />
-                  </motion.div>
-                </div>
-
-                <h3 className="font-poppins" style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 8, position: 'relative', zIndex: 1 }}>
-                  No destinations yet
-                </h3>
-                <p style={{ fontSize: 14, color: '#64748b', maxWidth: 380, margin: '0 auto 24px', lineHeight: 1.6, fontWeight: 500, position: 'relative', zIndex: 1 }}>
-                  Be the first to share a hidden gem! Add your favorite place or adjust your filters to discover what others have shared.
-                </p>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' as const, position: 'relative', zIndex: 1 }}>
-                  <Link
-                    to="/add-place"
-                    className="no-underline"
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '10px 22px', borderRadius: 12,
-                      background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
-                      color: '#fff', fontSize: 13, fontWeight: 700,
-                      boxShadow: '0 4px 12px -2px rgba(99,102,241,0.3)',
-                    }}
-                  >
-                    <Plus size={15} /> Add a Place
-                  </Link>
-                  <button
-                    onClick={() => { setSearch(''); setActiveCategory('All'); }}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '10px 22px', borderRadius: 12,
-                      background: '#fff', color: '#475569', fontSize: 13, fontWeight: 600,
-                      border: '1.5px solid #e2e8f0', cursor: 'pointer',
-                    }}
-                  >
-                    Reset Filters
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </section>
-
-      {/* ═══════════════════ FEATURES SECTION ═══════════════════ */}
-      <section style={{
-        padding: '5rem 0',
-        background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-      }}>
-        <div className="container-custom" style={{ maxWidth: 1200 }}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            style={{ textAlign: 'center', marginBottom: '3.5rem' }}
-          >
-            <span style={{
-              display: 'inline-block', padding: '5px 14px', borderRadius: 8,
-              background: '#eef2ff', color: '#4f46e5', fontSize: 11,
-              fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em',
-              marginBottom: 16,
-            }}>
-              Why TravelExplorer
-            </span>
-            <h2 className="font-poppins" style={{
-              fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', fontWeight: 700,
-              color: '#0f172a', marginBottom: 10,
-            }}>
-              Built for Real Exploration
+          <div className="mt-8 flex items-end justify-between gap-4 md:mt-10">
+            <h2
+              ref={resultsRef}
+              aria-live="polite"
+              className="scroll-mt-24 font-display text-[1.7rem] leading-tight text-resist md:text-[2rem]"
+            >
+              {resultsTitle}
             </h2>
-            <p style={{ fontSize: 15, color: '#94a3b8', maxWidth: 480, margin: '0 auto', fontWeight: 500, lineHeight: 1.6 }}>
-              A community-driven ecosystem for travelers who seek more than sightseeing.
-            </p>
-          </motion.div>
+            {!loading && total > places.length && (
+              <Link to={browseHref} className="shrink-0 pb-1 font-semibold text-resist no-underline hover:underline">
+                See all {total}
+                <ArrowRight size={16} className="ml-1 inline" aria-hidden="true" />
+              </Link>
+            )}
+          </div>
+        </div>
+        <FringeBand edge="bottom" className="absolute inset-x-0 top-full" />
+      </section>
 
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-3"
-            style={{ gap: 20 }}
-          >
-            {[
-              {
-                icon: <Compass size={24} />,
-                title: 'Authentic Feed',
-                desc: 'Every place is shared by a real traveler with verified photos and honest context — no sponsored listings.',
-                gradient: 'linear-gradient(135deg, #4f46e5, #6366f1)',
-                bgLight: '#eef2ff',
-                textColor: '#4f46e5',
-                borderAccent: 'rgba(99,102,241,0.12)',
-              },
-              {
-                icon: <Users size={24} />,
-                title: 'Travel Network',
-                desc: 'Connect with explorers who share your interests and get personalized trip recommendations.',
-                gradient: 'linear-gradient(135deg, #0d9488, #14b8a6)',
-                bgLight: '#f0fdf4',
-                textColor: '#0d9488',
-                borderAccent: 'rgba(20,184,166,0.12)',
-              },
-              {
-                icon: <TrendingUp size={24} />,
-                title: 'Fresh Trends',
-                desc: 'Stay updated on under-the-radar destinations that are trending in the community right now.',
-                gradient: 'linear-gradient(135deg, #d97706, #f59e0b)',
-                bgLight: '#fffbeb',
-                textColor: '#d97706',
-                borderAccent: 'rgba(245,158,11,0.12)',
-              },
-            ].map((feature, i) => (
-              <motion.div
-                key={i}
-                variants={fadeUp}
-                whileHover={{ y: -4 }}
-                style={{
-                  position: 'relative', background: '#fff', borderRadius: 20,
-                  padding: '2rem 1.75rem', cursor: 'default', overflow: 'hidden',
-                  border: `1.5px solid ${feature.borderAccent}`,
-                  boxShadow: '0 2px 12px -2px rgba(0,0,0,0.04)',
-                  transition: 'box-shadow 0.4s, border-color 0.4s',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = `0 12px 32px -8px ${feature.borderAccent.replace('0.12', '0.25')}`;
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 12px -2px rgba(0,0,0,0.04)';
-                }}
-              >
-                {/* Icon */}
-                <div style={{
-                  width: 48, height: 48, borderRadius: 14, background: feature.bgLight,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: feature.textColor, marginBottom: 20,
-                }}>
-                  {feature.icon}
-                </div>
+      {/* ─── The swatches run off the cloth onto the cotton ─── */}
+      <section aria-label="Places" className="relative z-10 -mt-[112px] sm:-mt-[150px] md:-mt-[190px]">
+        <div className="page-wrap">
+          {error ? (
+            <div className="rounded-[3px] border-2 border-iron bg-paper p-8 text-center">
+              <p className="font-display text-2xl text-iron">The places didn't load.</p>
+              <p className="mx-auto mt-2 max-w-md text-iron-2">{error}</p>
+              <button type="button" onClick={loadPlaces} className="btn-ink mt-5">
+                Try again
+              </button>
+            </div>
+          ) : loading && places.length === 0 ? (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <PlaceCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : places.length === 0 ? (
+            <div className="rounded-[3px] border-2 border-iron bg-paper p-8 text-center md:p-12">
+              <p className="font-display text-[1.8rem] leading-tight text-iron">
+                {filtered ? 'Nothing printed for that yet.' : 'No places shared yet.'}
+              </p>
+              <p className="mx-auto mt-2 max-w-md text-[1.05rem] text-iron-2">
+                {filtered
+                  ? 'Try a different word or category — or be the first to share a place like it.'
+                  : 'Be the first: share a place you would send a friend to.'}
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                {filtered && (
+                  <button type="button" onClick={clearFilters} className="btn-line">
+                    Clear filters
+                  </button>
+                )}
+                <Link to="/add-place" className="btn-ink">
+                  Share a place
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <ul
+              key={`${query}|${category}`}
+              className={`grid gap-5 sm:grid-cols-2 lg:grid-cols-3 ${loading ? 'opacity-60 transition-opacity' : ''}`}
+            >
+              {places.map((place, i) => (
+                <motion.li
+                  key={place._id}
+                  initial={{ scale: 1.03, filter: 'blur(3px)' }}
+                  animate={{ scale: 1, filter: 'blur(0px)' }}
+                  transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1], delay: Math.min(i, 8) * 0.05 }}
+                >
+                  <PlaceCard place={place} priority={i < 3} />
+                </motion.li>
+              ))}
+            </ul>
+          )}
 
-                <h3 className="font-poppins" style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
-                  {feature.title}
-                </h3>
-                <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, marginBottom: 16, fontWeight: 500 }}>
-                  {feature.desc}
-                </p>
-
-
-
-                {/* Accent line at top */}
-                <div style={{
-                  position: 'absolute', top: 0, left: 24, right: 24, height: 3,
-                  borderRadius: '0 0 99px 99px',
-                  background: feature.gradient,
-                  opacity: 0.6,
-                }} />
-              </motion.div>
-            ))}
-          </motion.div>
+          {!filtered && !loading && !error && total > places.length && (
+            <div className="mt-8 flex justify-center">
+              <Link to="/uploads" className="btn-line">
+                Browse all {plural(total, 'place')}
+                <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ═══════════════════ CTA FOOTER ═══════════════════ */}
+      {/* ─── Same block, every place ─── */}
+      {example && (
+        <section className="page-wrap mt-24 md:mt-32" aria-labelledby="block-title">
+          <div className="grid items-start gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+            <div>
+              <h2 id="block-title" className="font-display text-[2.2rem] leading-[1.05] text-iron md:text-[2.8rem]">
+                Same block, every place.
+              </h2>
+              <p className="mt-4 max-w-[52ch] text-[1.1rem] leading-relaxed text-iron-2">
+                Whoever shares a place fills in the same facts — cost, hours, how long to stay — and the community's
+                reviews set the rating. So a Mughal tomb and a food crawl line up side by side, and you can tell at a
+                glance which fits your afternoon.
+              </p>
+              <Link to={`/place/${example._id}`} className="ink-link mt-6 inline-flex items-center gap-1.5 text-[1.05rem]">
+                Open {plainText(example.name)}
+                <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+            </div>
+            <div>
+              <p className="mb-3 font-display text-[1.5rem] leading-tight text-iron">
+                {plainText(example.name)} <span className="font-sans text-base font-semibold text-iron-3">· {example.city}</span>
+              </p>
+              <FactBlock place={example} size="full" />
+              <dl className="mt-8 grid gap-x-8 gap-y-4 text-[0.98rem] sm:grid-cols-2">
+                <div>
+                  <dt className="font-bold text-iron">Cost</dt>
+                  <dd className="text-iron-2">Free, ₹, ₹₹ or ₹₹₹ — a budget band, not a price list.</dd>
+                </div>
+                <div>
+                  <dt className="font-bold text-iron">Stay</dt>
+                  <dd className="text-iron-2">How long people actually spend there.</dd>
+                </div>
+                <div>
+                  <dt className="font-bold text-iron">Rating</dt>
+                  <dd className="text-iron-2">The average of community reviews. No reviews, no number.</dd>
+                </div>
+                <div>
+                  <dt className="font-bold text-iron">Hours</dt>
+                  <dd className="text-iron-2">Opening times, plus the closed days worth knowing.</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </section>
+      )}
 
-      {/* Inject the responsive grid override for the hero */}
-      <style>{`
-        @media (min-width: 1024px) {
-          .lg\\:!grid-cols-\\[1\\.1fr_0\\.9fr\\] {
-            grid-template-columns: 1.1fr 0.9fr !important;
-          }
-        }
-          @keyframes ping {
-          75%, 100% { transform: scale(2); opacity: 0; }
-        }
-      `}</style>
-    </motion.div>
+      {/* ─── Cities ledger ─── */}
+      {stats && stats.topCities.length > 0 && (
+        <section className="page-wrap mt-24 md:mt-32" aria-labelledby="cities-title">
+          <h2 id="cities-title" className="font-display text-[2.2rem] leading-[1.05] text-iron md:text-[2.8rem]">
+            Cities in the collection
+          </h2>
+          <ul className="mt-8 grid border-t-2 border-iron sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3">
+            {stats.topCities.map((c) => (
+              <li key={c.city} className="border-b border-rule-strong">
+                <Link
+                  to={`/uploads?city=${encodeURIComponent(c.city)}`}
+                  className="group flex min-h-[64px] items-center justify-between gap-4 py-3 text-iron no-underline"
+                >
+                  <span className="font-display text-[1.65rem] leading-none transition-colors group-hover:text-madder">
+                    {c.city}
+                  </span>
+                  <span className="tabular flex items-center gap-2 text-[0.98rem] text-iron-2">
+                    {plural(c.count, 'place')}
+                    <ArrowRight
+                      size={16}
+                      aria-hidden="true"
+                      className="-translate-x-1 opacity-0 transition-[opacity,transform] duration-200 group-hover:translate-x-0 group-hover:opacity-100"
+                    />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ─── Group visits ─── */}
+      <section className="page-wrap mb-24 mt-24 md:mb-32 md:mt-32" aria-labelledby="visits-title">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 id="visits-title" className="font-display text-[2.2rem] leading-[1.05] text-iron md:text-[2.8rem]">
+            Going soon
+          </h2>
+          <p className="max-w-md text-iron-2">Group visits travelers have planned. Join one, or plan your own from any place.</p>
+        </div>
+        {events.length > 0 ? (
+          <ul className="mt-8 grid gap-4 md:grid-cols-3">
+            {events.map((ev) => (
+              <EventRow key={ev._id} event={ev} />
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-8 rounded-[3px] border border-dashed border-rule-strong p-6 text-iron-2">
+            No group visits planned yet. Open any place and choose <strong className="text-iron">Plan a group visit</strong>.
+          </p>
+        )}
+      </section>
+    </>
   );
 };
+
+function EventRow({ event }: { event: IVisitEvent }) {
+  const place = typeof event.placeId === 'string' ? null : event.placeId;
+  const date = new Date(event.scheduledDate);
+  const going = event.currentParticipants ?? 0;
+  const inner = (
+    <>
+      <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-[3px] bg-dye py-2 text-resist">
+        <span className="font-display text-[1.9rem] leading-none">{date.getDate()}</span>
+        <span className="text-xs font-bold uppercase tracking-[0.1em] text-resist-dim">
+          {date.toLocaleDateString('en-IN', { month: 'short' })}
+        </span>
+      </div>
+      <div className="min-w-0">
+        <p className="font-display text-[1.3rem] leading-tight text-iron">{event.title}</p>
+        {place && (
+          <p className="mt-0.5 truncate text-[0.95rem] text-iron-2">
+            {plainText(place.name)} · {place.city}
+          </p>
+        )}
+        <p className="tabular mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-iron-2">
+          <span className="inline-flex items-center gap-1">
+            <CalendarDays size={14} aria-hidden="true" />
+            {formatDate(event.scheduledDate, { weekday: 'short', day: 'numeric', month: 'short' })}, {event.time}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Users size={14} aria-hidden="true" />
+            {going} of {event.maxParticipants} going
+          </span>
+        </p>
+      </div>
+    </>
+  );
+  return (
+    <li>
+      {place ? (
+        <Link
+          to={`/place/${place._id}`}
+          className="flex h-full gap-4 rounded-[3px] border border-rule bg-paper p-4 no-underline transition-colors hover:border-iron"
+        >
+          {inner}
+        </Link>
+      ) : (
+        <div className="flex h-full gap-4 rounded-[3px] border border-rule bg-paper p-4">{inner}</div>
+      )}
+    </li>
+  );
+}
 
 export default HomePage;
